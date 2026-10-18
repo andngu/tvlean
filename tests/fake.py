@@ -19,6 +19,12 @@ class FakeDevice(Device):
     def model(self):
         return self._model
 
+    def prop(self, name):
+        return "14" if name == "ro.build.version.release" else ""
+
+    def mem_available_kb(self):
+        return 1024 * 1024
+
     def installed_packages(self):
         return set(self.packages)
 

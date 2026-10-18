@@ -18,4 +18,4 @@ tvlean = "tvlean.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-tvlean = ["profiles/*.toml"]
+tvlean = ["profiles/*.toml", "static/*.html"]

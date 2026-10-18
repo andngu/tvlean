@@ -33,6 +33,20 @@ no way back. tvlean takes the opposite approach:
    tvlean restore           # undo the last apply
    ```
 
+## Web UI
+
+Prefer clicking to typing? `tvlean serve` opens a small local page that shows
+the device's status, what each group would change, and Apply / Undo buttons.
+
+```sh
+tvlean serve                      # http://localhost:8765/#token=...
+tvlean serve --host 100.x.y.z     # e.g. your Tailscale IP, to use it from your phone
+```
+
+Open the exact URL it prints: it carries a random per-session token, and
+every action requires it, so other websites can't drive your TV. It listens
+on localhost only unless you pass `--host`.
+
 ## Groups
 
 Profiles split changes into groups. Defaults are applied unless you pass

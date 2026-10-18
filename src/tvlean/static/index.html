@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tvlean</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --surface: #ffffff; --surface-2: #eef0f3; --border: #dde1e6;
+    --text: #15181d; --muted: #5d6673; --accent: #3a5ccc; --accent-text: #ffffff;
+    --ok: #1f7a4d; --warn: #9a5b00; --bad: #b3261e; --ok-bg: #e5f4ec; --warn-bg: #fdf1dc; --bad-bg: #fbe7e5;
+    --radius: 10px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --surface: #171a20; --surface-2: #1f232b; --border: #2b303a;
+      --text: #e8eaee; --muted: #9aa3b0; --accent: #7d97f0; --accent-text: #0f1115;
+      --ok: #6fd3a0; --warn: #f0b860; --bad: #f2897f; --ok-bg: #16291f; --warn-bg: #2d2416; --bad-bg: #321b19;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+  h1 span { color: var(--muted); font-weight: 400; font-size: 15px; margin-left: 8px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 28px 0 10px; font-weight: 600; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  select, input[type=text] {
+    font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; min-width: 0;
+  }
+  select { flex: 1 1 220px; }
+  input[type=text] { flex: 1 1 180px; }
+  button {
+    font: inherit; font-weight: 600; border-radius: 8px; padding: 8px 14px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+  .fact .k { font-size: 12px; color: var(--muted); }
+  .fact .v { font-weight: 600; overflow-wrap: anywhere; }
+  .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; }
+  .pill.ok { background: var(--ok-bg); color: var(--ok); }
+  .pill.bad { background: var(--bad-bg); color: var(--bad); }
+  .pill.muted { background: var(--surface-2); color: var(--muted); }
+  .group { border-top: 1px solid var(--border); padding: 12px 0; }
+  .group:first-child { border-top: 0; padding-top: 0; }
+  .group:last-child { padding-bottom: 0; }
+  .group label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+  .group input { margin-top: 4px; width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+  .group .name { font-weight: 600; }
+  .group .desc { color: var(--muted); font-size: 14px; }
+  details { margin: 6px 0 0 28px; }
+  summary { cursor: pointer; color: var(--accent); font-size: 14px; }
+  ul.changes { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+  ul.changes li { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+  ul.changes code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+  ul.changes .why { color: var(--muted); }
+  .notice { border-radius: var(--radius); padding: 10px 14px; margin-top: 12px; font-size: 14px; }
+  .notice.warn { background: var(--warn-bg); color: var(--warn); }
+  .notice.bad { background: var(--bad-bg); color: var(--bad); }
+  .notice.ok { background: var(--ok-bg); color: var(--ok); }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+  .muted { color: var(--muted); }
+  .hidden { display: none !important; }
+  footer { margin-top: 40px; font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>tvlean <span>Google TV cleanup</span></h1>
+    <span id="busy" class="muted" aria-live="polite"></span>
+  </header>
+
+  <section class="card" aria-labelledby="dev-h">
+    <h2 id="dev-h" style="margin-top:0">Device</h2>
+    <div class="row">
+      <select id="device" aria-label="Device"></select>
+      <button id="refresh" type="button">Refresh</button>
+    </div>
+    <form id="connect" class="row" style="margin-top:10px">
+      <input id="address" type="text" placeholder="Connect to IP, e.g. 100.119.226.31" aria-label="Device address" autocomplete="off">
+      <button type="submit">Connect</button>
+    </form>
+    <div id="msg" aria-live="polite"></div>
+  </section>
+
+  <div id="status" class="hidden">
+    <h2>Status</h2>
+    <section class="card">
+      <div class="facts" id="facts"></div>
+      <div id="warnings"></div>
+    </section>
+
+    <h2>Changes</h2>
+    <section class="card">
+      <div id="groups"></div>
+      <div id="launcher-note" class="notice warn hidden">Applying the launcher group presses Home on the TV to check the result, which will interrupt anything playing.</div>
+      <div class="actions">
+        <button id="apply" class="primary" type="button">Apply</button>
+        <button id="restore" type="button">Undo last apply</button>
+      </div>
+    </section>
+  </div>
+
+  <footer>Every change is journaled before it's made and can be undone. Protected system apps are never touched.</footer>
+</main>
+
+<script>
+const token = new URLSearchParams(location.hash.slice(1)).get("token") || "";
+const $ = (id) => document.getElementById(id);
+let state = null;
+
+function el(tag, attrs = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") n.className = v; else if (k in n) n[k] = v; else n.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) if (kid != null) n.append(kid);
+  return n;
+}
+
+async function api(path, body) {
+  const res = await fetch(path, {
+    method: body === undefined ? "GET" : "POST",
+    headers: { "X-Tvlean-Token": token, "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+function message(kind, text) {
+  $("msg").replaceChildren(text ? el("div", { class: `notice ${kind}` }, text) : "");
+}
+
+async function busy(label, fn) {
+  $("busy").textContent = label;
+  // Remember each control's own disabled state; elements re-rendered during fn() keep theirs.
+  const controls = [...document.querySelectorAll("button, select, input")];
+  const was = controls.map((c) => c.disabled);
+  controls.forEach((c) => (c.disabled = true));
+  try { return await fn(); }
+  catch (e) { message("bad", e.message); }
+  finally {
+    $("busy").textContent = "";
+    controls.forEach((c, i) => (c.disabled = was[i]));
+    updateApply();
+  }
+}
+
+function renderDevices(devices, keep) {
+  const sel = $("device");
+  sel.replaceChildren(
+    ...(devices.length ? devices : [{ serial: "", state: "none" }]).map((d) =>
+      el("option", { value: d.serial, disabled: d.state !== "device" },
+        d.serial ? `${d.serial}${d.state === "device" ? "" : ` (${d.state})`}` : "No devices. Connect one below."))
+  );
+  const ready = devices.filter((d) => d.state === "device");
+  if (keep && ready.some((d) => d.serial === keep)) sel.value = keep;
+  else if (ready.length) sel.value = ready[0].serial;
+  const unauth = devices.find((d) => d.state === "unauthorized");
+  if (unauth) message("warn", `Accept the "Allow USB debugging?" prompt on the TV for ${unauth.serial}, then press Refresh.`);
+}
+
+function renderStatus(s) {
+  state = s;
+  const d = s.device;
+  const fact = (k, v) => el("div", { class: "fact" }, el("div", { class: "k" }, k), el("div", { class: "v" }, v));
+  $("facts").replaceChildren(
+    fact("Model", d.model),
+    fact("Android", d.android),
+    fact("Free RAM", d.free_ram_mb != null ? `${d.free_ram_mb} MB` : "?"),
+    fact("Home screen", el("span", { class: `pill ${d.home_ok ? "ok" : "bad"}` }, d.home_ok ? "OK" : "Broken")),
+    fact("On screen now", d.foreground || "?"),
+    fact("Profile", s.profile.id),
+  );
+  $("warnings").replaceChildren(...s.warnings.map((w) => el("div", { class: "notice bad" }, w)));
+
+  $("groups").replaceChildren(...s.groups.map((g) => {
+    const n = g.pending.length;
+    const box = el("input", { type: "checkbox", value: g.id, checked: g.default && n > 0, disabled: n === 0 });
+    box.addEventListener("change", updateApply);
+    const badge = n
+      ? el("span", { class: "pill muted" }, `${n} pending`)
+      : el("span", { class: "pill ok" }, "Done");
+    return el("div", { class: "group" },
+      el("label", {}, box,
+        el("div", {},
+          el("div", {}, el("span", { class: "name" }, g.id), " ", badge, g.default ? "" : el("span", { class: "muted" }, " · opt-in")),
+          el("div", { class: "desc" }, g.description))),
+      n ? el("details", {}, el("summary", {}, "What changes"),
+        el("ul", { class: "changes" }, g.pending.map((c) => el("li", {},
+          el("div", {}, verb(c), " ", el("code", {}, c.target)),
+          el("div", { class: "why" }, c.reason))))) : null);
+  }));
+  $("restore").classList.toggle("hidden", !s.can_restore);
+  $("status").classList.remove("hidden");
+  updateApply();
+}
+
+function verb(c) {
+  if (c.kind === "package") return "Disable";
+  if (c.kind === "accessibility") return "Turn on service";
+  return `Set ${c.before ?? "(unset)"} → ${c.after}:`;
+}
+
+function selectedGroups() {
+  return [...document.querySelectorAll("#groups input:checked")].map((b) => b.value);
+}
+
+function updateApply() {
+  if (!state) return;
+  const picked = selectedGroups();
+  const targets = new Set(state.groups.filter((g) => picked.includes(g.id)).flatMap((g) => g.pending.map((c) => c.target)));
+  $("apply").textContent = targets.size ? `Apply ${targets.size} change${targets.size === 1 ? "" : "s"}` : "Nothing selected";
+  $("apply").disabled = targets.size === 0;
+  $("launcher-note").classList.toggle("hidden", !state.groups.some((g) =>
+    picked.includes(g.id) && g.pending.some((c) => c.kind === "accessibility")));
+}
+
+async function loadDevices() {
+  const keep = $("device").value;
+  const { devices } = await api("/api/devices");
+  renderDevices(devices, keep);
+  if ($("device").value) await loadStatus();
+  else $("status").classList.add("hidden");
+}
+
+async function loadStatus() {
+  renderStatus(await api("/api/status", { device: $("device").value }));
+}
+
+$("refresh").addEventListener("click", () => busy("Reading device…", async () => { message(); await loadDevices(); }));
+$("device").addEventListener("change", () => busy("Reading device…", loadStatus));
+$("connect").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const address = $("address").value.trim();
+  if (!address) return;
+  busy("Connecting…", async () => {
+    const r = await api("/api/connect", { address });
+    message(/connected/.test(r.message) && !/failed|cannot/.test(r.message) ? "ok" : "warn", r.message);
+    renderDevices(r.devices);
+    if ($("device").value) await loadStatus();
+  });
+});
+$("apply").addEventListener("click", () => {
+  const groups = selectedGroups();
+  if (!confirm(`Apply ${groups.join(", ")}? You can undo this afterwards.`)) return;
+  busy("Applying…", async () => {
+    const r = await api("/api/apply", { device: $("device").value, groups });
+    message("ok", `Applied ${r.applied} change${r.applied === 1 ? "" : "s"}.`);
+    for (const n of r.notes) $("msg").append(el("div", { class: "notice warn" }, n));
+    await loadStatus();
+  });
+});
+$("restore").addEventListener("click", () => {
+  if (!confirm("Undo the last apply on this device?")) return;
+  busy("Restoring…", async () => {
+    const r = await api("/api/restore", { device: $("device").value });
+    message("ok", `Restored ${r.restored} change${r.restored === 1 ? "" : "s"}.`);
+    await loadStatus();
+  });
+});
+
+if (!token) message("bad", "Missing token. Open the full URL that `tvlean serve` printed.");
+else busy("Looking for devices…", loadDevices);
+</script>
+</body>
+</html>

@@ -118,6 +118,12 @@ def cmd_restore(args) -> None:
     print(f"Restored {len(undone)} changes from {path}")
 
 
+def cmd_serve(args) -> None:
+    from .web import serve
+
+    serve(args.host, args.port)
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="tvlean", description=__doc__)
     ap.add_argument("--version", action="version", version=f"tvlean {__version__}")
@@ -146,6 +152,11 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("restore", help="undo the last apply (or a given journal)")
     p.add_argument("journal", nargs="?")
     p.set_defaults(fn=cmd_restore)
+
+    p = sub.add_parser("serve", help="open the web UI")
+    p.add_argument("--host", default="127.0.0.1", help="address to listen on (default: localhost only)")
+    p.add_argument("--port", type=int, default=8765)
+    p.set_defaults(fn=cmd_serve)
 
     args = ap.parse_args(argv)
     try:
