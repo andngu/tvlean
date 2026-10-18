@@ -25,13 +25,16 @@
     margin: 0; background: var(--bg); color: var(--text);
     font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
-  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 32px; }
   header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
   h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
   h1 span { color: var(--muted); font-weight: 400; font-size: 15px; margin-left: 8px; }
   h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 28px 0 10px; font-weight: 600; }
+  h3 { font-size: 17px; margin: 0; }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .card + .card { margin-top: 12px; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .spread { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; justify-content: space-between; }
   select, input[type=text] {
     font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border);
     border-radius: 8px; padding: 8px 10px; min-width: 0;
@@ -43,43 +46,65 @@
     border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
   }
   button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  button.link { background: none; border: 0; padding: 0; color: var(--accent); font-weight: 600; }
   button:disabled { opacity: .5; cursor: not-allowed; }
-  button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
   .fact .k { font-size: 12px; color: var(--muted); }
   .fact .v { font-weight: 600; overflow-wrap: anywhere; }
-  .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; }
+  .pill, .tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
   .pill.ok { background: var(--ok-bg); color: var(--ok); }
   .pill.bad { background: var(--bad-bg); color: var(--bad); }
-  .pill.muted { background: var(--surface-2); color: var(--muted); }
-  .group { border-top: 1px solid var(--border); padding: 12px 0; }
-  .group:first-child { border-top: 0; padding-top: 0; }
-  .group:last-child { padding-bottom: 0; }
-  .group label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
-  .group input { margin-top: 4px; width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
-  .group .name { font-weight: 600; }
-  .group .desc { color: var(--muted); font-size: 14px; }
-  details { margin: 6px 0 0 28px; }
-  summary { cursor: pointer; color: var(--accent); font-size: 14px; }
-  ul.changes { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
-  ul.changes li { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
-  ul.changes code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
-  ul.changes .why { color: var(--muted); margin-top: 2px; }
-  ul.changes .top { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
-  ul.changes .label { font-weight: 600; }
-  ul.changes .tech { color: var(--muted); margin-top: 4px; font-size: 12px; }
-  ul.changes li.absent { opacity: .65; }
   .pill.pending { background: var(--warn-bg); color: var(--warn); }
-  .caveat { font-size: 14px; margin-top: 6px; color: var(--text); }
+  .pill.muted, .tag { background: var(--surface-2); color: var(--muted); }
+  .tag.rec { color: var(--accent); }
+  .desc, .muted { color: var(--muted); }
+  .desc { font-size: 14px; margin-top: 2px; }
+  .caveat { font-size: 14px; margin-top: 6px; }
   .caveat b { color: var(--warn); font-weight: 600; }
+  .opt { border-top: 1px solid var(--border); padding: 12px 0; margin-top: 12px; }
+  .opt:last-child { padding-bottom: 0; }
+  .opt.quiet { opacity: .7; }
+  .opt label.toggle { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+  .opt .box { width: 18px; flex: none; }
+  .opt input[type=checkbox] { margin: 4px 0 0; width: 18px; height: 18px; accent-color: var(--accent); }
+  .opt .head { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+  .opt .name { font-weight: 600; }
+  .indent { margin-left: 28px; }
+  fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+  legend { padding: 0; }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .seg label {
+    display: flex; gap: 6px; align-items: center; cursor: pointer; padding: 6px 12px;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2);
+  }
+  .seg label:has(input:checked) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .seg label:has(input:disabled) { opacity: .5; cursor: not-allowed; }
+  .seg input { accent-color: var(--accent); margin: 0; }
+  details { margin-top: 6px; }
+  summary { cursor: pointer; color: var(--accent); font-size: 14px; }
+  ul.tech { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+  ul.tech code, .lines code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; color: var(--muted); }
   .notice { border-radius: var(--radius); padding: 10px 14px; margin-top: 12px; font-size: 14px; }
   .notice.warn { background: var(--warn-bg); color: var(--warn); }
   .notice.bad { background: var(--bad-bg); color: var(--bad); }
   .notice.ok { background: var(--ok-bg); color: var(--ok); }
-  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
-  .muted { color: var(--muted); }
+  .bar {
+    position: sticky; bottom: 0; margin-top: 16px; padding: 12px 16px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    box-shadow: 0 -6px 18px rgba(0, 0, 0, .12);
+  }
+  .bar .count { font-weight: 600; }
+  dialog {
+    width: min(560px, calc(100vw - 32px)); border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface); color: var(--text); padding: 20px;
+  }
+  dialog::backdrop { background: rgba(0, 0, 0, .45); }
+  .lines { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 10px; }
+  .lines li > div:first-child { font-weight: 600; }
   .hidden { display: none !important; }
-  footer { margin-top: 40px; font-size: 13px; color: var(--muted); }
+  footer { margin-top: 24px; font-size: 13px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -107,33 +132,49 @@
     <section class="card">
       <div class="facts" id="facts"></div>
       <div id="warnings"></div>
+      <div class="row" style="margin-top:12px"><button id="restore" type="button">Undo last apply</button></div>
     </section>
 
-    <h2>Changes</h2>
-    <section class="card">
-      <div id="groups"></div>
-      <div id="launcher-note" class="notice warn hidden">Applying the launcher group presses Home on the TV to check the result, which will interrupt anything playing.</div>
-      <div class="actions">
-        <button id="apply" class="primary" type="button">Apply</button>
-        <button id="restore" type="button">Undo last apply</button>
+    <div class="spread" style="margin:28px 0 10px">
+      <h2 style="margin:0">Choose what to change</h2>
+      <button id="recommended" class="link" type="button">Use recommended</button>
+    </div>
+    <div id="sections"></div>
+
+    <div class="bar">
+      <div>
+        <div class="count" id="count" aria-live="polite"></div>
+        <div id="home-note" class="desc hidden">Applying presses Home on the TV once to check the launcher.</div>
       </div>
-    </section>
+      <button id="review" class="primary" type="button">Review and apply</button>
+    </div>
   </div>
 
   <footer>Every change is journaled before it's made and can be undone. Protected system apps are never touched.</footer>
 </main>
 
+<dialog id="dialog" aria-labelledby="dialog-h">
+  <h3 id="dialog-h"></h3>
+  <ul class="lines" id="lines"></ul>
+  <div id="dialog-home" class="notice warn hidden">This presses Home on the TV once, which interrupts anything playing.</div>
+  <div class="row" style="justify-content:flex-end;margin-top:16px">
+    <button id="cancel" type="button">Cancel</button>
+    <button id="confirm" class="primary" type="button"></button>
+  </div>
+</dialog>
+
 <script>
 const token = new URLSearchParams(location.hash.slice(1)).get("token") || "";
 const $ = (id) => document.getElementById(id);
 let state = null;
+let selection = {};
 
 function el(tag, attrs = {}, ...kids) {
   const n = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
     if (k === "class") n.className = v; else if (k in n) n[k] = v; else n.setAttribute(k, v);
   }
-  for (const kid of kids.flat()) if (kid != null) n.append(kid);
+  for (const kid of kids.flat()) if (kid != null && kid !== false) n.append(kid);
   return n;
 }
 
@@ -155,7 +196,7 @@ function message(kind, text) {
 async function busy(label, fn) {
   $("busy").textContent = label;
   // Remember each control's own disabled state; elements re-rendered during fn() keep theirs.
-  const controls = [...document.querySelectorAll("button, select, input")];
+  const controls = [...document.querySelectorAll("main button, main select, main input")];
   const was = controls.map((c) => c.disabled);
   controls.forEach((c) => (c.disabled = true));
   try { return await fn(); }
@@ -163,8 +204,167 @@ async function busy(label, fn) {
   finally {
     $("busy").textContent = "";
     controls.forEach((c, i) => (c.disabled = was[i]));
-    updateApply();
+    updateBar();
   }
+}
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const options = () => state.sections.flatMap((s) => s.options);
+const valueOf = (opt, id) => opt.values.find((v) => v.id === id);
+
+const STATUS = {
+  change: { off: ["Will turn off", "pending"], on: ["Will turn on", "pending"], set: ["Will change", "pending"] },
+  done: { off: ["Already off", "ok"], on: ["Already on", "ok"], set: ["Already set", "ok"] },
+  absent: { off: ["Not on this TV", "muted"], on: ["Not on this TV", "muted"], set: ["Not on this TV", "muted"] },
+};
+
+function pill(v) {
+  const [text, kind] = STATUS[v.status][v.action];
+  return el("span", { class: `pill ${kind}` }, text);
+}
+
+function technical(changes) {
+  if (!changes.length) return null;
+  return el("details", {}, el("summary", {}, "Technical"),
+    el("ul", { class: "tech" }, changes.map((c) => el("li", {},
+      el("code", {}, c.kind === "setting" ? `${c.target}: ${c.before ?? "unset"} → ${c.after}` : c.target)))));
+}
+
+function caveat(text) {
+  return text ? el("div", { class: "caveat" }, el("b", {}, "Good to know: "), text) : null;
+}
+
+function toggleRow(opt) {
+  const v = opt.values[0];
+  if (v.status === "unavailable") {
+    return el("div", { class: "opt" },
+      el("div", { class: "head" }, el("span", { class: "name" }, opt.label)),
+      opt.reason ? el("div", { class: "desc" }, opt.reason) : null,
+      el("div", { class: "notice warn" }, v.why));
+  }
+  const box = v.status === "change"
+    ? el("input", { type: "checkbox", checked: selection[opt.id] === v.id })
+    : null;
+  box?.addEventListener("change", () => {
+    if (box.checked) selection[opt.id] = v.id; else delete selection[opt.id];
+    updateBar();
+  });
+  return el("div", { class: `opt${v.status === "change" ? "" : " quiet"}` },
+    el("label", { class: "toggle" },
+      el("span", { class: "box" }, box),
+      el("div", {},
+        el("div", { class: "head" },
+          el("span", { class: "name" }, opt.label), pill(v),
+          opt.recommended && v.status === "change" ? el("span", { class: "tag rec" }, "Recommended") : null),
+        opt.reason ? el("div", { class: "desc" }, opt.reason) : null,
+        caveat(opt.caveat))),
+    el("div", { class: "indent" }, technical(v.changes)));
+}
+
+function choiceRow(opt) {
+  const name = `choice-${opt.id}`;
+  const detail = el("div", { class: "desc" });
+  const tech = el("div");
+  const show = () => {
+    const v = valueOf(opt, selection[opt.id] ?? opt.current);
+    if (!v) detail.replaceChildren("The TV has a custom setting. Pick a value to change it.");
+    else if (v.status === "done") detail.replaceChildren("No change.");
+    else detail.replaceChildren(v.detail ? `${v.detail} ` : "", el("span", { class: "muted" }, `Changes ${plural(v.changes.length, "setting")}.`));
+    tech.replaceChildren(technical(v ? v.changes : []) ?? "");
+  };
+  const radios = opt.values.map((v) => {
+    const input = el("input", {
+      type: "radio", name, value: v.id,
+      checked: (selection[opt.id] ?? opt.current) === v.id,
+      disabled: v.status === "unavailable",
+    });
+    input.addEventListener("change", () => {
+      if (v.status === "done") delete selection[opt.id]; else selection[opt.id] = v.id;
+      show(); updateBar();
+    });
+    return el("label", { title: v.why || "" }, input, v.label,
+      v.id === opt.current ? el("span", { class: "tag" }, "Now") : null,
+      v.id === opt.recommended ? el("span", { class: "tag rec" }, "Recommended") : null);
+  });
+  const unavailable = opt.values.filter((v) => v.status === "unavailable");
+  show();
+  return el("div", { class: "opt" },
+    el("fieldset", {},
+      el("legend", { class: "name" }, opt.label),
+      opt.reason ? el("div", { class: "desc" }, opt.reason) : null,
+      caveat(opt.caveat),
+      el("div", { class: "seg" }, radios),
+      unavailable.map((v) => el("div", { class: "desc" }, `${v.label}: ${v.why}`)),
+      detail, tech));
+}
+
+function sectionCard(sec) {
+  const rows = [];
+  const absent = [];
+  for (const opt of sec.options) {
+    if (opt.kind === "toggle" && opt.values[0].status === "absent") absent.push(opt);
+    else rows.push(opt.kind === "choice" ? choiceRow(opt) : toggleRow(opt));
+  }
+  const title = sec.detected ? `${sec.title} · found on this TV (${sec.options.length})` : sec.title;
+  return el("section", { class: "card" },
+    el("h3", {}, title),
+    el("div", { class: "desc" }, sec.description),
+    caveat(sec.caveat),
+    sec.detected && !sec.options.length ? el("div", { class: "notice ok" }, "No known streaming apps on this TV.") : null,
+    rows,
+    absent.length ? el("details", {}, el("summary", {}, `Not on this TV (${absent.length})`),
+      el("ul", { class: "tech" }, absent.map((o) => el("li", {}, o.label)))) : null);
+}
+
+function picked() {
+  return options().flatMap((opt) => {
+    const v = selection[opt.id] && valueOf(opt, selection[opt.id]);
+    return v && v.status === "change" ? [[opt, v]] : [];
+  });
+}
+
+function updateBar() {
+  if (!state) return;
+  const picks = picked();
+  const targets = new Set(picks.flatMap(([, v]) => v.changes.map((c) => c.target)));
+  $("count").textContent = targets.size ? `${plural(targets.size, "change")} selected` : "Nothing selected";
+  $("review").disabled = targets.size === 0;
+  $("home-note").classList.toggle("hidden", !picks.some(([, v]) => v.presses_home));
+}
+
+function renderStatus(s) {
+  state = s;
+  selection = Object.fromEntries(options().filter((o) => o.default).map((o) => [o.id, o.default]));
+  const d = s.device;
+  const fact = (k, v) => el("div", { class: "fact" }, el("div", { class: "k" }, k), el("div", { class: "v" }, v));
+  $("facts").replaceChildren(
+    fact("Model", d.model),
+    fact("Android", d.android),
+    fact("Free RAM", d.free_ram_mb != null ? `${d.free_ram_mb} MB` : "?"),
+    fact("Home screen", el("span", { class: `pill ${d.home_ok ? "ok" : "bad"}` }, d.home_ok ? "OK" : "Broken")),
+    fact("On screen now", d.foreground || "?"),
+    fact("Profile", s.profile.id),
+  );
+  $("warnings").replaceChildren(...s.warnings.map((w) => el("div", { class: "notice bad" }, w)));
+  $("restore").classList.toggle("hidden", !s.can_restore);
+  $("sections").replaceChildren(...s.sections.map(sectionCard));
+  $("status").classList.remove("hidden");
+  updateBar();
+}
+
+function reviewLines() {
+  return picked().map(([opt, v]) => {
+    let head;
+    if (opt.kind === "choice") {
+      const now = opt.current ? valueOf(opt, opt.current).label : "custom";
+      head = `${opt.label}: ${now} → ${v.label}`;
+    } else {
+      head = `${{ off: "Turn off", on: "Turn on", set: "Change" }[v.action]} ${opt.label}`;
+    }
+    return el("li", {}, el("div", {}, head),
+      el("div", {}, v.changes.map((c) => el("div", {}, el("code", {},
+        c.kind === "setting" ? `${c.target}: ${c.before ?? "unset"} → ${c.after}` : c.target)))));
+  });
 }
 
 function renderDevices(devices, keep) {
@@ -179,75 +379,6 @@ function renderDevices(devices, keep) {
   else if (ready.length) sel.value = ready[0].serial;
   const unauth = devices.find((d) => d.state === "unauthorized");
   if (unauth) message("warn", `Accept the "Allow USB debugging?" prompt on the TV for ${unauth.serial}, then press Refresh.`);
-}
-
-function renderStatus(s) {
-  state = s;
-  const d = s.device;
-  const fact = (k, v) => el("div", { class: "fact" }, el("div", { class: "k" }, k), el("div", { class: "v" }, v));
-  $("facts").replaceChildren(
-    fact("Model", d.model),
-    fact("Android", d.android),
-    fact("Free RAM", d.free_ram_mb != null ? `${d.free_ram_mb} MB` : "?"),
-    fact("Home screen", el("span", { class: `pill ${d.home_ok ? "ok" : "bad"}` }, d.home_ok ? "OK" : "Broken")),
-    fact("On screen now", d.foreground || "?"),
-    fact("Profile", s.profile.id),
-  );
-  $("warnings").replaceChildren(...s.warnings.map((w) => el("div", { class: "notice bad" }, w)));
-
-  $("groups").replaceChildren(...s.groups.map((g) => {
-    const n = g.pending.length;
-    const box = el("input", { type: "checkbox", value: g.id, checked: g.default && n > 0, disabled: n === 0 });
-    box.addEventListener("change", updateApply);
-    const badge = n
-      ? el("span", { class: "pill pending" }, `${n} to change`)
-      : el("span", { class: "pill ok" }, "Done");
-    const present = g.items.filter((i) => i.status !== "absent").length;
-    return el("div", { class: "group" },
-      el("label", {}, box,
-        el("div", {},
-          el("div", {}, el("span", { class: "name" }, g.title), " ", badge, g.default ? "" : el("span", { class: "muted" }, " · optional")),
-          el("div", { class: "desc" }, g.description),
-          g.caveat ? el("div", { class: "caveat" }, el("b", {}, "Good to know: "), g.caveat) : null)),
-      el("details", { open: n > 0 },
-        el("summary", {}, `What's included (${present})`),
-        el("ul", { class: "changes" }, g.items.map(item))));
-  }));
-  $("restore").classList.toggle("hidden", !s.can_restore);
-  $("status").classList.remove("hidden");
-  updateApply();
-}
-
-const STATUS = {
-  pending: (i) => i.kind === "package" ? "Will turn off" : i.kind === "accessibility" ? "Will turn on" : "Will change",
-  done: (i) => i.kind === "package" ? "Already off" : "Already set",
-  absent: () => "Not on this TV",
-};
-
-function item(i) {
-  const tech = i.status === "pending" && i.kind === "setting"
-    ? `${i.target}: ${i.before ?? "unset"} → ${i.after}`
-    : i.target;
-  return el("li", { class: i.status },
-    el("div", { class: "top" },
-      el("span", { class: "label" }, i.label || i.target),
-      el("span", { class: `pill ${i.status === "pending" ? "pending" : i.status === "done" ? "ok" : "muted"}` }, STATUS[i.status](i))),
-    el("div", { class: "why" }, i.reason),
-    el("div", { class: "tech" }, el("code", {}, tech)));
-}
-
-function selectedGroups() {
-  return [...document.querySelectorAll("#groups input:checked")].map((b) => b.value);
-}
-
-function updateApply() {
-  if (!state) return;
-  const picked = selectedGroups();
-  const targets = new Set(state.groups.filter((g) => picked.includes(g.id)).flatMap((g) => g.pending.map((c) => c.target)));
-  $("apply").textContent = targets.size ? `Apply ${targets.size} change${targets.size === 1 ? "" : "s"}` : "Nothing selected";
-  $("apply").disabled = targets.size === 0;
-  $("launcher-note").classList.toggle("hidden", !state.groups.some((g) =>
-    picked.includes(g.id) && g.pending.some((c) => c.kind === "accessibility")));
 }
 
 async function loadDevices() {
@@ -275,12 +406,23 @@ $("connect").addEventListener("submit", (e) => {
     if ($("device").value) await loadStatus();
   });
 });
-$("apply").addEventListener("click", () => {
-  const groups = selectedGroups();
-  if (!confirm(`Apply ${groups.join(", ")}? You can undo this afterwards.`)) return;
+$("recommended").addEventListener("click", () => renderStatus(state));
+$("review").addEventListener("click", () => {
+  const picks = picked();
+  const n = new Set(picks.flatMap(([, v]) => v.changes.map((c) => c.target))).size;
+  $("dialog-h").textContent = `Review ${plural(n, "change")}`;
+  $("lines").replaceChildren(...reviewLines());
+  $("dialog-home").classList.toggle("hidden", !picks.some(([, v]) => v.presses_home));
+  $("confirm").textContent = `Apply ${plural(n, "change")}`;
+  $("dialog").showModal();
+});
+$("cancel").addEventListener("click", () => $("dialog").close());
+$("confirm").addEventListener("click", () => {
+  $("dialog").close();
+  const chosen = Object.fromEntries(picked().map(([opt, v]) => [opt.id, v.id]));
   busy("Applying…", async () => {
-    const r = await api("/api/apply", { device: $("device").value, groups });
-    message("ok", `Applied ${r.applied} change${r.applied === 1 ? "" : "s"}.`);
+    const r = await api("/api/apply", { device: $("device").value, selection: chosen });
+    message("ok", `Applied ${plural(r.applied, "change")}. Undo last apply puts them back.`);
     for (const n of r.notes) $("msg").append(el("div", { class: "notice warn" }, n));
     await loadStatus();
   });
@@ -289,7 +431,7 @@ $("restore").addEventListener("click", () => {
   if (!confirm("Undo the last apply on this device?")) return;
   busy("Restoring…", async () => {
     const r = await api("/api/restore", { device: $("device").value });
-    message("ok", `Restored ${r.restored} change${r.restored === 1 ? "" : "s"}.`);
+    message("ok", `Restored ${plural(r.restored, "change")}.`);
     await loadStatus();
   });
 });
