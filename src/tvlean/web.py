@@ -55,72 +55,38 @@ def api_connect(body: dict) -> dict:
     return {"message": connect(addr), **api_devices({})}
 
 
-def _group_items(prof: Profile, gid: str, pending: list[engine.Change], installed: set[str]) -> list[dict]:
-    """Every rule in the group with its status on this device, so done groups still explain themselves."""
-    by_target = {c.target: c for c in pending}
-    items = []
-    for rule in prof.rules_in(gid):
-        change = by_target.get(rule.target)
-        if change:
-            status = "pending"
-        elif rule.kind != "setting" and rule.package not in installed:
-            status = "absent"
-        else:
-            status = "done"
-        items.append(
+def _option_json(o: engine.OptionStatus) -> dict:
+    opt = o.option
+    return {
+        "id": opt.id,
+        "kind": "choice" if opt.is_choice else "toggle",
+        "label": opt.label,
+        "reason": opt.reason,
+        "caveat": opt.caveat,
+        "recommended": opt.recommended,
+        "current": o.current,
+        "default": o.default,
+        "values": [
             {
-                "kind": rule.kind,
-                "target": rule.target,
-                "label": rule.label,
-                "reason": rule.reason,
-                "status": status,
-                "before": change.before if change else None,
-                "after": change.after if change else None,
+                "id": vs.value.id,
+                "label": vs.value.label,
+                "detail": vs.value.detail,
+                "action": vs.value.action,
+                "status": vs.status.value,
+                "why": vs.why,
+                "presses_home": vs.value.presses_home,
+                "changes": [asdict(c) for c in vs.changes],
             }
-        )
-    # Changes the engine adds on its own (e.g. the accessibility master switch).
-    covered = {r.target for r in prof.rules_in(gid)}
-    for c in pending:
-        if c.target not in covered:
-            items.append(
-                {
-                    "kind": c.kind,
-                    "target": c.target,
-                    "label": c.label,
-                    "reason": c.reason,
-                    "status": "pending",
-                    "before": c.before,
-                    "after": c.after,
-                }
-            )
-    return items
+            for vs in o.values
+        ],
+    }
 
 
 def api_status(body: dict) -> dict:
     dev = _ready_device(body["device"])
     prof = _profile_for(dev)
-    installed = dev.installed_packages()
+    survey = engine.survey(dev, prof)
     mem = dev.mem_available_kb()
-    groups = []
-    for gid, group in prof.groups.items():
-        changes = engine.plan(dev, prof, [gid])
-        groups.append(
-            {
-                "id": gid,
-                "title": group.title,
-                "description": group.description,
-                "caveat": group.caveat,
-                "default": gid in prof.default_groups,
-                "pending": [asdict(c) for c in changes],
-                "items": _group_items(prof, gid, changes, installed),
-            }
-        )
-    warnings = [
-        f"Protected package {p.package} is disabled. {p.reason}"
-        for p in prof.protected
-        if p.package in installed and dev.package_state(p.package) in engine.DISABLED_STATES
-    ]
-    journal = engine.latest_journal(dev.serial)
     return {
         "device": {
             "serial": dev.serial,
@@ -131,28 +97,42 @@ def api_status(body: dict) -> dict:
             "home_ok": engine.home_is_healthy(dev),
             "foreground": dev.foreground_package(),
         },
-        "profile": {"id": prof.id, "name": prof.name, "tested_on": prof.tested_on},
-        "groups": groups,
-        "warnings": warnings,
-        "can_restore": journal is not None,
+        "profile": {"id": prof.id, "name": prof.name, "tested_on": list(prof.tested_on)},
+        "sections": [
+            {
+                "id": sec.section.id,
+                "title": sec.section.title,
+                "description": sec.section.description,
+                "caveat": sec.section.caveat,
+                "detected": sec.section.detected,
+                "options": [_option_json(o) for o in sec.options],
+            }
+            for sec in survey.sections
+        ],
+        "warnings": list(survey.warnings),
+        "can_restore": engine.latest_journal(dev.serial) is not None,
     }
 
 
 def api_apply(body: dict) -> dict:
     dev = _ready_device(body["device"])
     prof = _profile_for(dev)
-    groups = [g for g in body.get("groups", []) if g in prof.groups]
-    if not groups:
-        raise ApiError(400, "pick at least one group")
-    changes = engine.plan(dev, prof, groups)
+    selection = body.get("selection")
+    if not isinstance(selection, dict) or not all(isinstance(v, str) for v in selection.values()):
+        raise ApiError(400, "selection must be an object of option id to value id")
+    # Re-read the TV and plan here rather than trusting the page's view of it.
+    try:
+        changes = engine.survey(dev, prof).plan(selection)
+    except engine.SelectionError as e:
+        raise ApiError(400, str(e)) from None
     if not changes:
-        return {"applied": 0, "notes": []}
+        return {"applied": 0, "changes": [], "notes": []}
     journal = engine.apply(dev, prof, changes)
     notes = [
         f"Pressed Home but {pkg} didn't come up. {hint}"
         for pkg, hint in engine.verify_home_overrides(dev, prof, changes)
     ]
-    return {"applied": len(changes), "journal": str(journal), "notes": notes}
+    return {"applied": len(changes), "changes": [asdict(c) for c in changes], "journal": str(journal), "notes": notes}
 
 
 def api_restore(body: dict) -> dict:
