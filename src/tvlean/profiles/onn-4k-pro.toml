@@ -1,0 +1,132 @@
+# onn. Streaming Device 4K pro (Walmart), Google TV, Android 14.
+# Every rule here was applied and verified on a real device; see tested_on.
+
+[profile]
+id = "onn-4k-pro"
+name = "onn. Streaming Device 4K pro"
+match_models = ["onn. Streaming Device 4K pro"]
+tested_on = ["Android 14, jarvis, 2026-10-18"]
+default_groups = ["bloat", "privacy", "power", "speed"]
+
+[groups]
+bloat = "Preinstalled apps that nothing else depends on"
+streaming = "Preinstalled streaming apps (opt-in: only if you don't use them)"
+privacy = "Ad targeting, personalization and location"
+power = "Let the device actually sleep"
+speed = "Snappier UI"
+
+# --- packages ---------------------------------------------------------------
+
+[[package]]
+package = "com.google.android.play.games"
+reason = "Play Games; unused on TV"
+groups = ["bloat"]
+
+[[package]]
+package = "com.google.android.marvin.talkback"
+reason = "TalkBack screen reader; re-enable if you need it"
+groups = ["bloat"]
+
+[[package]]
+package = "com.android.printspooler"
+reason = "Printing service; TVs don't print"
+groups = ["bloat"]
+
+[[package]]
+package = "com.google.android.feedback"
+reason = "Google feedback reporter"
+groups = ["bloat", "privacy"]
+
+[[package]]
+package = "com.android.tv.feedbackconsent"
+reason = "Feedback consent prompt"
+groups = ["bloat", "privacy"]
+
+[[package]]
+package = "com.google.android.youtube.tv"
+reason = "Preinstalled YouTube"
+groups = ["streaming"]
+
+[[package]]
+package = "com.netflix.ninja"
+reason = "Preinstalled Netflix"
+groups = ["streaming"]
+
+[[package]]
+package = "com.netflix.tokenmanager"
+reason = "Netflix sign-in helper; only useful with Netflix"
+groups = ["streaming"]
+
+[[package]]
+package = "com.android.adservices.api"
+reason = "Privacy Sandbox ad services"
+groups = ["privacy"]
+
+[[package]]
+package = "com.android.ondevicepersonalization.services"
+reason = "Privacy Sandbox on-device personalization"
+groups = ["privacy"]
+
+[[package]]
+package = "com.android.federatedcompute.services"
+reason = "Privacy Sandbox federated learning"
+groups = ["privacy"]
+
+# --- settings ---------------------------------------------------------------
+
+[[setting]]
+namespace = "global"
+key = "stay_on_while_plugged_in"
+value = "0"
+reason = "Developer option 'Stay awake' keeps the box running forever"
+groups = ["power"]
+
+[[setting]]
+namespace = "secure"
+key = "location_mode"
+value = "0"
+reason = "A TV box doesn't need location"
+groups = ["privacy"]
+
+[[setting]]
+namespace = "global"
+key = "window_animation_scale"
+value = "0.5"
+reason = "Halve animation time"
+groups = ["speed"]
+
+[[setting]]
+namespace = "global"
+key = "transition_animation_scale"
+value = "0.5"
+reason = "Halve animation time"
+groups = ["speed"]
+
+[[setting]]
+namespace = "global"
+key = "animator_duration_scale"
+value = "0.5"
+reason = "Halve animation time"
+groups = ["speed"]
+
+# --- never touch --------------------------------------------------------------
+
+[[protected]]
+package = "com.google.android.apps.tv.launcherx"
+reason = "Disabling it makes setupwraith's RecoveryActivity take over Home. Use a launcher's own Home-override (e.g. Projectivy) instead."
+
+[[protected]]
+package = "com.google.android.tungsten.setupwraith"
+reason = "Setup wizard; disabling it can leave the device unable to reach a home screen"
+
+[[protected]]
+package = "com.google.android.gms"
+reason = "Play Services; breaks sign-in, app updates and most apps"
+
+[[protected]]
+package = "com.android.vending"
+reason = "Play Store; needed to install and update apps"
+
+[[protected]]
+package = "com.google.android.katniss"
+reason = "Assistant / voice search; the remote's mic button stops working"
