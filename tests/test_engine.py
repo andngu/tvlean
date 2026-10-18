@@ -113,5 +113,76 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(seen, [True])
 
 
+LAUNCHER = "com.spocky.projengmenu"
+SERVICE = LAUNCHER + "/.services.ProjectivyAccessibilityService"
+OTHER = "com.example.other/.Svc"
+
+
+class LauncherOverrideTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        os.environ["XDG_STATE_HOME"] = self.tmp.name
+        self.prof = find_profile(ONN)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+        del os.environ["XDG_STATE_HOME"]
+
+    def plan(self, dev):
+        return engine.plan(dev, self.prof, ["launcher"])
+
+    def test_skipped_when_launcher_not_installed(self):
+        self.assertEqual(self.plan(FakeDevice({})), [])
+
+    def test_skipped_when_already_on(self):
+        dev = FakeDevice(
+            {LAUNCHER: "default"},
+            {"secure/enabled_accessibility_services": SERVICE, "secure/accessibility_enabled": "1"},
+        )
+        self.assertEqual(self.plan(dev), [])
+
+    def test_not_in_default_groups(self):
+        dev = FakeDevice({LAUNCHER: "default"})
+        planned = engine.plan(dev, self.prof, self.prof.default_groups)
+        self.assertNotIn("accessibility", [c.kind for c in planned])
+
+    def test_apply_keeps_other_services_and_restore_removes_only_ours(self):
+        dev = FakeDevice({LAUNCHER: "default"}, {"secure/enabled_accessibility_services": OTHER})
+        changes = self.plan(dev)
+        self.assertEqual([c.kind for c in changes], ["accessibility", "setting"])
+        journal = engine.apply(dev, self.prof, changes)
+        self.assertEqual(dev.settings["secure/enabled_accessibility_services"], f"{OTHER}:{SERVICE}")
+        self.assertEqual(dev.settings["secure/accessibility_enabled"], "1")
+
+        engine.restore(dev, journal)
+        self.assertEqual(dev.settings, {"secure/enabled_accessibility_services": OTHER})
+
+    def test_restore_deletes_list_it_created(self):
+        dev = FakeDevice({LAUNCHER: "default"})
+        journal = engine.apply(dev, self.prof, self.plan(dev))
+        engine.restore(dev, journal)
+        self.assertEqual(dev.settings, {})
+
+    def test_verify_passes_when_launcher_takes_over(self):
+        dev = FakeDevice({LAUNCHER: "default"})
+        changes = self.plan(dev)
+        engine.apply(dev, self.prof, changes)
+        self.assertEqual(engine.verify_home_overrides(dev, self.prof, changes, settle=0), [])
+
+    def test_verify_reports_hint_when_in_app_toggle_is_off(self):
+        dev = FakeDevice({LAUNCHER: "default"})
+        dev.home_override_toggle = False
+        changes = self.plan(dev)
+        engine.apply(dev, self.prof, changes)
+        failed = engine.verify_home_overrides(dev, self.prof, changes, settle=0)
+        self.assertEqual([pkg for pkg, _ in failed], [LAUNCHER])
+        self.assertIn("Override current launcher", failed[0][1])
+
+    def test_verify_does_nothing_without_override_changes(self):
+        dev = FakeDevice({})
+        self.assertEqual(engine.verify_home_overrides(dev, self.prof, [], settle=0), [])
+        self.assertIsNone(dev.foreground)  # never pressed Home
+
+
 if __name__ == "__main__":
     unittest.main()

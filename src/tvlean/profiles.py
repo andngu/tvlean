@@ -31,6 +31,21 @@ class SettingRule:
 
 
 @dataclass
+class AccessibilityRule:
+    """Turn on an app's accessibility service, e.g. a launcher's Home-button override."""
+
+    service: str  # "package/.ServiceClass", as listed in enabled_accessibility_services
+    reason: str
+    groups: list[str]
+    takes_over_home: bool = False  # verify after apply that Home lands in this app
+    hint: str = ""  # what to do if that verification fails
+
+    @property
+    def package(self) -> str:
+        return self.service.split("/", 1)[0]
+
+
+@dataclass
 class Protected:
     package: str
     reason: str
@@ -46,6 +61,7 @@ class Profile:
     default_groups: list[str]
     packages: list[PackageRule] = field(default_factory=list)
     settings: list[SettingRule] = field(default_factory=list)
+    accessibility: list[AccessibilityRule] = field(default_factory=list)
     protected: list[Protected] = field(default_factory=list)
 
     def matches(self, model: str) -> bool:
@@ -75,6 +91,16 @@ def parse(data: dict, source: str = "<profile>") -> Profile:
                 SettingRule(s["namespace"], s["key"], str(s["value"]), s["reason"], list(s["groups"]))
                 for s in data.get("setting", [])
             ],
+            accessibility=[
+                AccessibilityRule(
+                    a["service"],
+                    a["reason"],
+                    list(a["groups"]),
+                    bool(a.get("takes_over_home", False)),
+                    a.get("hint", ""),
+                )
+                for a in data.get("accessibility", [])
+            ],
             protected=[Protected(p["package"], p["reason"]) for p in data.get("protected", [])],
         )
     except KeyError as e:
@@ -88,10 +114,13 @@ def validate(prof: Profile, source: str) -> None:
     for g in prof.default_groups:
         if g not in known:
             raise ProfileError(f"{source}: default group {g!r} is not defined in [groups]")
-    for rule in [*prof.packages, *prof.settings]:
+    for rule in [*prof.packages, *prof.settings, *prof.accessibility]:
         for g in rule.groups:
             if g not in known:
                 raise ProfileError(f"{source}: unknown group {g!r}")
+    for a in prof.accessibility:
+        if "/" not in a.service or ":" in a.service:
+            raise ProfileError(f"{source}: accessibility service must be 'package/.Class', got {a.service!r}")
     for s in prof.settings:
         if s.namespace not in NAMESPACES:
             raise ProfileError(f"{source}: bad namespace {s.namespace!r} for {s.key}")

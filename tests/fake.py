@@ -13,6 +13,8 @@ class FakeDevice(Device):
         self._model = model
         self.home_breakers: set[str] = set()  # disabling any of these breaks home
         self.fail_on: str | None = None  # package whose disable raises
+        self.home_override_toggle = True  # stands in for a launcher's in-app "override Home" switch
+        self.foreground: str | None = None
 
     def model(self):
         return self._model
@@ -39,6 +41,17 @@ class FakeDevice(Device):
             self.settings.pop(f"{ns}/{key}", None)
         else:
             self.settings[f"{ns}/{key}"] = value
+
+    def press_home(self):
+        services = (self.settings.get("secure/enabled_accessibility_services") or "").split(":")
+        overrides = [s.split("/")[0] for s in services if s]
+        if overrides and self.home_override_toggle:
+            self.foreground = overrides[0]
+        else:
+            self.foreground = "com.google.android.apps.tv.launcherx"
+
+    def foreground_package(self):
+        return self.foreground
 
     def home_activity(self):
         if any(self.packages.get(p) == "disabled-user" for p in self.home_breakers):

@@ -45,6 +45,7 @@ Profiles split changes into groups. Defaults are applied unless you pass
 | `power` | yes | Turn off "Stay awake" so the box actually sleeps |
 | `speed` | yes | 0.5x animations |
 | `streaming` | opt-in | Preinstalled YouTube / Netflix |
+| `launcher` | opt-in | Make [Projectivy Launcher](https://play.google.com/store/apps/details?id=com.spocky.projengmenu) your Home screen (see below) |
 
 ## Supported devices
 
@@ -55,11 +56,24 @@ Profiles split changes into groups. Defaults are applied unless you pass
 Your device not listed? See [CONTRIBUTING.md](CONTRIBUTING.md); profiles are
 small TOML files and are the most useful thing you can contribute.
 
+## Replacing the launcher
+
+The stock Google TV launcher is the heaviest thing on most boxes, but disabling
+it can leave you with no home screen (on the onn 4K Pro, a setup "recovery"
+screen takes over). tvlean never does that. Instead, `--with launcher` turns on
+[Projectivy Launcher](https://play.google.com/store/apps/details?id=com.spocky.projengmenu)'s
+accessibility service so it can intercept the Home button:
+
+```sh
+tvlean apply --with launcher
+```
+
+Projectivy also has an in-app switch that adb can't reach, so after applying,
+tvlean presses Home and checks Projectivy actually came up. If it didn't, it
+tells you to turn on *Projectivy → Settings → General → Override current launcher*.
+
 ## Tips that aren't in profiles (yet)
 
-- **Lighter launcher:** on Google TV you can't safely disable the stock launcher.
-  Install [Projectivy Launcher](https://play.google.com/store/apps/details?id=com.spocky.projengmenu)
-  and turn on *Settings → General → Override current launcher* instead.
 - **Ad ID:** Settings → Privacy → Ads → *Delete advertising ID*. It lives inside
   Play Services, so tvlean doesn't touch it.
 

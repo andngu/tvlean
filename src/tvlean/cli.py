@@ -52,7 +52,7 @@ def _print_plan(changes: list[engine.Change]) -> None:
         print("Nothing to change.")
         return
     for c in changes:
-        verb = "disable" if c.kind == "package" else f"set {c.before!r} -> {c.after!r}"
+        verb = {"package": "disable", "accessibility": "turn on service"}.get(c.kind, f"set {c.before!r} -> {c.after!r}")
         print(f"  {verb:<24} {c.target}\n  {'':<24} {c.reason}")
 
 
@@ -105,6 +105,8 @@ def cmd_apply(args) -> None:
         sys.exit("Aborted.")
     journal = engine.apply(dev, prof, changes)
     print(f"Applied {len(changes)} changes. Undo with: tvlean restore  (journal: {journal})")
+    for pkg, hint in engine.verify_home_overrides(dev, prof, changes):
+        print(f"\nNote: pressed Home but {pkg} didn't come up. {hint}")
 
 
 def cmd_restore(args) -> None:

@@ -23,10 +23,14 @@ DISABLED_STATES = {"disabled", "disabled-user", "disabled-until-used"}
 BAD_HOME_MARKERS = ("setupwraith", "RecoveryActivity", "FallbackHome")
 
 
+A11Y_LIST = ("secure", "enabled_accessibility_services")
+A11Y_MASTER = ("secure", "accessibility_enabled")
+
+
 @dataclass
 class Change:
-    kind: str  # "package" or "setting"
-    target: str  # package name, or "namespace/key"
+    kind: str  # "package", "setting" or "accessibility"
+    target: str  # package name, "namespace/key", or accessibility service
     before: str | None
     after: str | None
     reason: str
@@ -50,7 +54,23 @@ def plan(device: Device, profile: Profile, groups: list[str]) -> list[Change]:
         if current == rule.value:
             continue
         changes.append(Change("setting", f"{rule.namespace}/{rule.key}", current, rule.value, rule.reason))
+    a11y = [r for r in profile.accessibility if wanted.intersection(r.groups) and r.package in installed]
+    for rule in a11y:
+        if rule.service not in enabled_services(device):
+            changes.append(Change("accessibility", rule.service, "off", "on", rule.reason))
+    master = device.get_setting(*A11Y_MASTER)
+    if any(c.kind == "accessibility" for c in changes) and master != "1":
+        changes.append(Change("setting", "/".join(A11Y_MASTER), master, "1", "Accessibility services need this on"))
     return changes
+
+
+def enabled_services(device: Device) -> list[str]:
+    raw = device.get_setting(*A11Y_LIST) or ""
+    return [s for s in raw.split(":") if s]
+
+
+def _set_services(device: Device, services: list[str]) -> None:
+    device.put_setting(*A11Y_LIST, ":".join(services) or None)
 
 
 def state_dir() -> Path:
@@ -73,6 +93,11 @@ def _write_journal(path: Path, serial: str, profile_id: str, done: list[Change])
 def _do(device: Device, change: Change) -> None:
     if change.kind == "package":
         device.disable(change.target)
+    elif change.kind == "accessibility":
+        # Append rather than overwrite: other services (e.g. a user's own) may already be on.
+        services = enabled_services(device)
+        if change.target not in services:
+            _set_services(device, [*services, change.target])
     else:
         ns, key = change.target.split("/", 1)
         device.put_setting(ns, key, change.after)
@@ -82,6 +107,8 @@ def _undo(device: Device, change: Change) -> None:
     if change.kind == "package":
         if change.before not in DISABLED_STATES:
             device.enable(change.target)
+    elif change.kind == "accessibility":
+        _set_services(device, [s for s in enabled_services(device) if s != change.target])
     else:
         ns, key = change.target.split("/", 1)
         device.put_setting(ns, key, change.before)
@@ -90,6 +117,25 @@ def _undo(device: Device, change: Change) -> None:
 def home_is_healthy(device: Device) -> bool:
     home = device.home_activity()
     return bool(home) and "/" in home and not any(m in home for m in BAD_HOME_MARKERS)
+
+
+def verify_home_overrides(
+    device: Device, profile: Profile, changes: list[Change], settle: float = 3
+) -> list[tuple[str, str]]:
+    """Press Home and check that any newly enabled launcher override actually took over.
+
+    Returns (package, hint) for each override that didn't. The service being on
+    isn't enough: launchers like Projectivy also need an in-app toggle that adb
+    can't reach, so the only honest check is to press Home and look.
+    """
+    enabled = {c.target for c in changes if c.kind == "accessibility"}
+    rules = [r for r in profile.accessibility if r.takes_over_home and r.service in enabled]
+    if not rules:
+        return []
+    device.press_home()
+    time.sleep(settle)
+    front = device.foreground_package()
+    return [(r.package, r.hint) for r in rules if front != r.package]
 
 
 class ApplyFailed(RuntimeError):

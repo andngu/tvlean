@@ -81,6 +81,14 @@ class Device:
         )
         return out.splitlines()[-1].strip() if out else ""
 
+    def foreground_package(self) -> str | None:
+        out = self.shell("dumpsys activity activities")
+        m = re.search(r"topResumedActivity=ActivityRecord\{\S+ u\d+ ([\w.]+)/", out)
+        return m.group(1) if m else None
+
+    def press_home(self) -> None:
+        self.shell("input keyevent KEYCODE_HOME")
+
     # --- packages ----------------------------------------------------------
 
     def installed_packages(self) -> set[str]:

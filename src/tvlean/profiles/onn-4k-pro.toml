@@ -14,6 +14,7 @@ streaming = "Preinstalled streaming apps (opt-in: only if you don't use them)"
 privacy = "Ad targeting, personalization and location"
 power = "Let the device actually sleep"
 speed = "Snappier UI"
+launcher = "Use Projectivy Launcher as Home (opt-in; install Projectivy from the Play Store first)"
 
 # --- packages ---------------------------------------------------------------
 
@@ -108,6 +109,17 @@ key = "animator_duration_scale"
 value = "0.5"
 reason = "Halve animation time"
 groups = ["speed"]
+
+# --- accessibility services -----------------------------------------------------
+
+# The safe way to replace the stock launcher on Google TV: leave launcherx
+# enabled and let Projectivy intercept the Home button.
+[[accessibility]]
+service = "com.spocky.projengmenu/.services.ProjectivyAccessibilityService"
+reason = "Lets Projectivy take over the Home button without disabling the stock launcher"
+groups = ["launcher"]
+takes_over_home = true
+hint = "In Projectivy: Settings > General > turn on 'Override current launcher'."
 
 # --- never touch --------------------------------------------------------------
 
