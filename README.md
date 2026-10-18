@@ -20,7 +20,7 @@ no way back. tvlean takes the opposite approach:
 2. Install [platform-tools](https://developer.android.com/tools/releases/platform-tools) (for `adb`) and tvlean:
 
    ```sh
-   pip install git+https://github.com/<you>/tvlean
+   pip install git+https://github.com/andngu/tvlean
    ```
 
 3. Connect (works over LAN or Tailscale), accept the prompt on the TV, then audit:
