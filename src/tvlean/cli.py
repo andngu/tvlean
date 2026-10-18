@@ -52,8 +52,8 @@ def _print_plan(changes: list[engine.Change]) -> None:
         print("Nothing to change.")
         return
     for c in changes:
-        verb = {"package": "disable", "accessibility": "turn on service"}.get(c.kind, f"set {c.before!r} -> {c.after!r}")
-        print(f"  {verb:<24} {c.target}\n  {'':<24} {c.reason}")
+        verb = {"package": "turn off", "accessibility": "turn on"}.get(c.kind, f"set {c.before} -> {c.after}")
+        print(f"  - {c.label or c.target} ({verb}, {c.target})\n    {c.reason}")
 
 
 def cmd_devices(args) -> None:
@@ -84,12 +84,16 @@ def cmd_audit(args) -> None:
         if p.package in installed and dev.package_state(p.package) in engine.DISABLED_STATES:
             print(f"WARNING:  protected package {p.package} is disabled. {p.reason}")
     print()
-    for group, desc in prof.groups.items():
+    for group, info in prof.groups.items():
         changes = engine.plan(dev, prof, [group])
         default = "" if group in prof.default_groups else " (opt-in)"
-        print(f"[{group}]{default} {desc}: {len(changes)} pending")
-        if changes and args.verbose:
+        print(f"[{group}]{default} {info.title}: {len(changes)} to change")
+        if args.verbose:
+            print(f"  {info.description}")
+            if info.caveat:
+                print(f"  Good to know: {info.caveat}")
             _print_plan(changes)
+            print()
 
 
 def cmd_apply(args) -> None:

@@ -34,6 +34,7 @@ class Change:
     before: str | None
     after: str | None
     reason: str
+    label: str = ""  # friendly name; absent in journals written before labels existed
 
 
 def plan(device: Device, profile: Profile, groups: list[str]) -> list[Change]:
@@ -46,21 +47,30 @@ def plan(device: Device, profile: Profile, groups: list[str]) -> list[Change]:
         state = device.package_state(rule.package)
         if state is None or state in DISABLED_STATES:
             continue
-        changes.append(Change("package", rule.package, state, "disabled-user", rule.reason))
+        changes.append(Change("package", rule.package, state, "disabled-user", rule.reason, rule.label))
     for rule in profile.settings:
         if not wanted.intersection(rule.groups):
             continue
         current = device.get_setting(rule.namespace, rule.key)
         if current == rule.value:
             continue
-        changes.append(Change("setting", f"{rule.namespace}/{rule.key}", current, rule.value, rule.reason))
+        changes.append(Change("setting", rule.target, current, rule.value, rule.reason, rule.label))
     a11y = [r for r in profile.accessibility if wanted.intersection(r.groups) and r.package in installed]
     for rule in a11y:
         if rule.service not in enabled_services(device):
-            changes.append(Change("accessibility", rule.service, "off", "on", rule.reason))
+            changes.append(Change("accessibility", rule.service, "off", "on", rule.reason, rule.label))
     master = device.get_setting(*A11Y_MASTER)
     if any(c.kind == "accessibility" for c in changes) and master != "1":
-        changes.append(Change("setting", "/".join(A11Y_MASTER), master, "1", "Accessibility services need this on"))
+        changes.append(
+            Change(
+                "setting",
+                "/".join(A11Y_MASTER),
+                master,
+                "1",
+                "Android's main switch for accessibility services. It has to be on for the service above to run.",
+                "Accessibility switch",
+            )
+        )
     return changes
 
 

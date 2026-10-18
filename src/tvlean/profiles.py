@@ -15,10 +15,25 @@ NAMESPACES = ("global", "secure", "system")
 
 
 @dataclass
+class Group:
+    id: str
+    title: str  # plain-English name shown in the UI
+    description: str  # what the user will notice after applying
+    caveat: str = ""  # what they give up, or anything to do first
+
+
+@dataclass
 class PackageRule:
     package: str
+    label: str
     reason: str
     groups: list[str]
+
+    kind = "package"
+
+    @property
+    def target(self) -> str:
+        return self.package
 
 
 @dataclass
@@ -26,8 +41,15 @@ class SettingRule:
     namespace: str
     key: str
     value: str
+    label: str
     reason: str
     groups: list[str]
+
+    kind = "setting"
+
+    @property
+    def target(self) -> str:
+        return f"{self.namespace}/{self.key}"
 
 
 @dataclass
@@ -35,10 +57,17 @@ class AccessibilityRule:
     """Turn on an app's accessibility service, e.g. a launcher's Home-button override."""
 
     service: str  # "package/.ServiceClass", as listed in enabled_accessibility_services
+    label: str
     reason: str
     groups: list[str]
     takes_over_home: bool = False  # verify after apply that Home lands in this app
     hint: str = ""  # what to do if that verification fails
+
+    kind = "accessibility"
+
+    @property
+    def target(self) -> str:
+        return self.service
 
     @property
     def package(self) -> str:
@@ -57,7 +86,7 @@ class Profile:
     name: str
     match_models: list[str]
     tested_on: list[str]
-    groups: dict[str, str]
+    groups: dict[str, Group]
     default_groups: list[str]
     packages: list[PackageRule] = field(default_factory=list)
     settings: list[SettingRule] = field(default_factory=list)
@@ -70,6 +99,9 @@ class Profile:
     def is_protected(self, pkg: str) -> Protected | None:
         return next((p for p in self.protected if p.package == pkg), None)
 
+    def rules_in(self, group: str) -> list[PackageRule | SettingRule | AccessibilityRule]:
+        return [r for r in [*self.packages, *self.settings, *self.accessibility] if group in r.groups]
+
 
 class ProfileError(ValueError):
     pass
@@ -78,7 +110,10 @@ class ProfileError(ValueError):
 def parse(data: dict, source: str = "<profile>") -> Profile:
     try:
         meta = data["profile"]
-        groups = data.get("groups", {})
+        groups = {
+            gid: Group(gid, g["title"], g["description"], g.get("caveat", ""))
+            for gid, g in data.get("groups", {}).items()
+        }
         prof = Profile(
             id=meta["id"],
             name=meta["name"],
@@ -86,14 +121,15 @@ def parse(data: dict, source: str = "<profile>") -> Profile:
             tested_on=list(meta.get("tested_on", [])),
             groups=groups,
             default_groups=list(meta.get("default_groups", groups.keys())),
-            packages=[PackageRule(p["package"], p["reason"], list(p["groups"])) for p in data.get("package", [])],
+            packages=[PackageRule(p["package"], p["label"], p["reason"], list(p["groups"])) for p in data.get("package", [])],
             settings=[
-                SettingRule(s["namespace"], s["key"], str(s["value"]), s["reason"], list(s["groups"]))
+                SettingRule(s["namespace"], s["key"], str(s["value"]), s["label"], s["reason"], list(s["groups"]))
                 for s in data.get("setting", [])
             ],
             accessibility=[
                 AccessibilityRule(
                     a["service"],
+                    a["label"],
                     a["reason"],
                     list(a["groups"]),
                     bool(a.get("takes_over_home", False)),
@@ -105,6 +141,8 @@ def parse(data: dict, source: str = "<profile>") -> Profile:
         )
     except KeyError as e:
         raise ProfileError(f"{source}: missing field {e}") from None
+    except TypeError:
+        raise ProfileError(f"{source}: each [groups.<id>] must be a table with title and description") from None
     validate(prof, source)
     return prof
 

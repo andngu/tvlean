@@ -55,20 +55,64 @@ def api_connect(body: dict) -> dict:
     return {"message": connect(addr), **api_devices({})}
 
 
+def _group_items(prof: Profile, gid: str, pending: list[engine.Change], installed: set[str]) -> list[dict]:
+    """Every rule in the group with its status on this device, so done groups still explain themselves."""
+    by_target = {c.target: c for c in pending}
+    items = []
+    for rule in prof.rules_in(gid):
+        change = by_target.get(rule.target)
+        if change:
+            status = "pending"
+        elif rule.kind != "setting" and rule.package not in installed:
+            status = "absent"
+        else:
+            status = "done"
+        items.append(
+            {
+                "kind": rule.kind,
+                "target": rule.target,
+                "label": rule.label,
+                "reason": rule.reason,
+                "status": status,
+                "before": change.before if change else None,
+                "after": change.after if change else None,
+            }
+        )
+    # Changes the engine adds on its own (e.g. the accessibility master switch).
+    covered = {r.target for r in prof.rules_in(gid)}
+    for c in pending:
+        if c.target not in covered:
+            items.append(
+                {
+                    "kind": c.kind,
+                    "target": c.target,
+                    "label": c.label,
+                    "reason": c.reason,
+                    "status": "pending",
+                    "before": c.before,
+                    "after": c.after,
+                }
+            )
+    return items
+
+
 def api_status(body: dict) -> dict:
     dev = _ready_device(body["device"])
     prof = _profile_for(dev)
     installed = dev.installed_packages()
     mem = dev.mem_available_kb()
     groups = []
-    for gid, desc in prof.groups.items():
+    for gid, group in prof.groups.items():
         changes = engine.plan(dev, prof, [gid])
         groups.append(
             {
                 "id": gid,
-                "description": desc,
+                "title": group.title,
+                "description": group.description,
+                "caveat": group.caveat,
                 "default": gid in prof.default_groups,
                 "pending": [asdict(c) for c in changes],
+                "items": _group_items(prof, gid, changes, installed),
             }
         )
     warnings = [

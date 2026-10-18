@@ -52,14 +52,16 @@ on localhost only unless you pass `--host`.
 Profiles split changes into groups. Defaults are applied unless you pass
 `--without GROUP`; opt-in groups need `--with GROUP`.
 
-| Group | Default | What |
+| Group | Default | What you'll notice |
 |---|---|---|
-| `bloat` | yes | Preinstalled apps nothing depends on (Play Games, TalkBack, print spooler, feedback) |
-| `privacy` | yes | Privacy Sandbox ad/personalization services, location |
-| `power` | yes | Turn off "Stay awake" so the box actually sleeps |
-| `speed` | yes | 0.5x animations |
-| `streaming` | opt-in | Preinstalled YouTube / Netflix |
-| `launcher` | opt-in | Make [Projectivy Launcher](https://play.google.com/store/apps/details?id=com.spocky.projengmenu) your Home screen (see below) |
+| `bloat` | yes | Unused preinstalled apps (Play Games, TalkBack, Print Spooler, Google Feedback) disappear and stop running in the background |
+| `privacy` | yes | Android's ad-interest system (Privacy Sandbox), Google's feedback reporter and location are turned off |
+| `speed` | yes | Menu and app-switching animations run twice as fast |
+| `streaming` | opt-in | Preinstalled YouTube and Netflix are turned off |
+| `launcher` | opt-in | [Projectivy Launcher](https://play.google.com/store/apps/details?id=com.spocky.projengmenu) replaces the Google TV home screen (see below) |
+
+`tvlean audit -v` and the web UI explain every item in plain English before
+anything changes.
 
 ## Supported devices
 

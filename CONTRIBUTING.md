@@ -20,7 +20,11 @@ Rules of thumb:
   stock launcher on Google TV.
 - Disable, don't uninstall. tvlean only uses `pm disable-user`, which is
   reversible and survives without root.
-- Every rule needs a `reason` a non-technical person can understand.
+- Every group needs a `title`, a `description` of what the user will notice,
+  and a `caveat` for anything they give up or need to do first.
+- Every rule needs a short `label` (e.g. "Play Games", not the package name) and
+  a `reason` a non-technical person can understand: what the thing does and
+  why turning it off is fine.
 - Anything a typical user might still want (a streaming app, voice search) goes in an opt-in group.
 
 ## Code

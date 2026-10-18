@@ -14,12 +14,14 @@ ONN = "onn. Streaming Device 4K pro"
 def tiny_profile(**extra):
     data = {
         "profile": {"id": "t", "name": "T", "match_models": ["X"]},
-        "groups": {"bloat": "b", "speed": "s"},
+        "groups": {"bloat": {"title": "B", "description": "b"}, "speed": {"title": "S", "description": "s"}},
         "package": [
-            {"package": "a.bloat", "reason": "r", "groups": ["bloat"]},
-            {"package": "b.bloat", "reason": "r", "groups": ["bloat"]},
+            {"package": "a.bloat", "label": "A", "reason": "r", "groups": ["bloat"]},
+            {"package": "b.bloat", "label": "B", "reason": "r", "groups": ["bloat"]},
         ],
-        "setting": [{"namespace": "global", "key": "anim", "value": "0.5", "reason": "r", "groups": ["speed"]}],
+        "setting": [
+            {"namespace": "global", "key": "anim", "value": "0.5", "label": "Anim", "reason": "r", "groups": ["speed"]}
+        ],
         "protected": [{"package": "home.launcher", "reason": "needed"}],
     }
     data.update(extra)
@@ -45,7 +47,37 @@ class ProfileTests(unittest.TestCase):
 
     def test_rejects_unknown_group(self):
         with self.assertRaises(ProfileError):
-            tiny_profile(package=[{"package": "a", "reason": "r", "groups": ["nope"]}])
+            tiny_profile(package=[{"package": "a", "label": "A", "reason": "r", "groups": ["nope"]}])
+
+    def test_rejects_old_string_groups(self):
+        with self.assertRaises(ProfileError):
+            tiny_profile(groups={"bloat": "b", "speed": "s"})
+
+    def test_every_onn_rule_is_explained(self):
+        prof = find_profile(ONN)
+        for g in prof.groups.values():
+            self.assertTrue(g.title and len(g.description) > 40, g.id)
+        for rule in [*prof.packages, *prof.settings, *prof.accessibility]:
+            self.assertTrue(rule.label and len(rule.reason) > 20, rule.target)
+
+    def test_onn_has_no_power_group(self):
+        prof = find_profile(ONN)
+        self.assertNotIn("power", prof.groups)
+        self.assertNotIn("global/stay_on_while_plugged_in", [s.target for s in prof.settings])
+
+    def test_planned_changes_carry_labels(self):
+        dev = FakeDevice({"a.bloat": "default"})
+        self.assertEqual([c.label for c in engine.plan(dev, tiny_profile(), ["bloat"])], ["A"])
+
+    def test_old_journal_without_labels_still_restores(self):
+        import json
+        dev = FakeDevice({"a.bloat": "disabled-user"})
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "old.json"
+            path.write_text(json.dumps({"serial": dev.serial, "profile": "t", "changes": [
+                {"kind": "package", "target": "a.bloat", "before": "default", "after": "disabled-user", "reason": "r"}]}))
+            engine.restore(dev, path)
+        self.assertEqual(dev.packages["a.bloat"], "enabled")
 
 
 class EngineTests(unittest.TestCase):

@@ -52,7 +52,8 @@ class WebTests(unittest.TestCase):
             with urllib.request.urlopen(req) as r:
                 return r.status, json.loads(r.read())
         except urllib.error.HTTPError as e:
-            return e.code, json.loads(e.read())
+            with e:
+                return e.code, json.loads(e.read())
 
     def test_page_is_served_with_csp(self):
         with urllib.request.urlopen(self.base + "/") as r:
@@ -76,8 +77,28 @@ class WebTests(unittest.TestCase):
         groups = {g["id"]: g for g in data["groups"]}
         self.assertEqual([c["target"] for c in groups["bloat"]["pending"]], ["com.google.android.play.games"])
         self.assertFalse(groups["launcher"]["default"])
+        self.assertEqual(groups["bloat"]["title"], "Unused preinstalled apps")
+        self.assertIn("TalkBack", groups["bloat"]["caveat"])
+        items = {i["label"]: i for i in groups["bloat"]["items"]}
+        self.assertEqual(items["Play Games"]["status"], "pending")
+        self.assertEqual(items["TalkBack"]["status"], "absent")  # not installed on the fake
+        speed = {i["label"]: i for i in groups["speed"]["items"]}
+        self.assertEqual((speed["Window animations"]["before"], speed["Window animations"]["after"]), ("1.0", "0.5"))
+        self.assertEqual(speed["In-app animations"]["status"], "pending")
         self.assertTrue(data["device"]["home_ok"])
         self.assertFalse(data["can_restore"])
+
+    def test_done_groups_still_list_their_items(self):
+        self.call("/api/apply", {"device": self.dev.serial, "groups": ["speed"]})
+        groups = {g["id"]: g for g in self.call("/api/status", {"device": self.dev.serial})[1]["groups"]}
+        self.assertEqual(groups["speed"]["pending"], [])
+        self.assertEqual({i["status"] for i in groups["speed"]["items"]}, {"done"})
+        self.assertEqual(len(groups["speed"]["items"]), 3)
+
+    def test_launcher_items_include_master_switch(self):
+        groups = {g["id"]: g for g in self.call("/api/status", {"device": self.dev.serial})[1]["groups"]}
+        labels = [i["label"] for i in groups["launcher"]["items"]]
+        self.assertEqual(labels, ["Projectivy Home-button override", "Accessibility switch"])
 
     def test_apply_and_restore_round_trip(self):
         status, data = self.call("/api/apply", {"device": self.dev.serial, "groups": ["bloat", "speed"]})

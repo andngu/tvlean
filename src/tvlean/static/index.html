@@ -64,7 +64,14 @@
   ul.changes { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
   ul.changes li { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
   ul.changes code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
-  ul.changes .why { color: var(--muted); }
+  ul.changes .why { color: var(--muted); margin-top: 2px; }
+  ul.changes .top { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
+  ul.changes .label { font-weight: 600; }
+  ul.changes .tech { color: var(--muted); margin-top: 4px; font-size: 12px; }
+  ul.changes li.absent { opacity: .65; }
+  .pill.pending { background: var(--warn-bg); color: var(--warn); }
+  .caveat { font-size: 14px; margin-top: 6px; color: var(--text); }
+  .caveat b { color: var(--warn); font-weight: 600; }
   .notice { border-radius: var(--radius); padding: 10px 14px; margin-top: 12px; font-size: 14px; }
   .notice.warn { background: var(--warn-bg); color: var(--warn); }
   .notice.bad { background: var(--bad-bg); color: var(--bad); }
@@ -193,27 +200,40 @@ function renderStatus(s) {
     const box = el("input", { type: "checkbox", value: g.id, checked: g.default && n > 0, disabled: n === 0 });
     box.addEventListener("change", updateApply);
     const badge = n
-      ? el("span", { class: "pill muted" }, `${n} pending`)
+      ? el("span", { class: "pill pending" }, `${n} to change`)
       : el("span", { class: "pill ok" }, "Done");
+    const present = g.items.filter((i) => i.status !== "absent").length;
     return el("div", { class: "group" },
       el("label", {}, box,
         el("div", {},
-          el("div", {}, el("span", { class: "name" }, g.id), " ", badge, g.default ? "" : el("span", { class: "muted" }, " · opt-in")),
-          el("div", { class: "desc" }, g.description))),
-      n ? el("details", {}, el("summary", {}, "What changes"),
-        el("ul", { class: "changes" }, g.pending.map((c) => el("li", {},
-          el("div", {}, verb(c), " ", el("code", {}, c.target)),
-          el("div", { class: "why" }, c.reason))))) : null);
+          el("div", {}, el("span", { class: "name" }, g.title), " ", badge, g.default ? "" : el("span", { class: "muted" }, " · optional")),
+          el("div", { class: "desc" }, g.description),
+          g.caveat ? el("div", { class: "caveat" }, el("b", {}, "Good to know: "), g.caveat) : null)),
+      el("details", { open: n > 0 },
+        el("summary", {}, `What's included (${present})`),
+        el("ul", { class: "changes" }, g.items.map(item))));
   }));
   $("restore").classList.toggle("hidden", !s.can_restore);
   $("status").classList.remove("hidden");
   updateApply();
 }
 
-function verb(c) {
-  if (c.kind === "package") return "Disable";
-  if (c.kind === "accessibility") return "Turn on service";
-  return `Set ${c.before ?? "(unset)"} → ${c.after}:`;
+const STATUS = {
+  pending: (i) => i.kind === "package" ? "Will turn off" : i.kind === "accessibility" ? "Will turn on" : "Will change",
+  done: (i) => i.kind === "package" ? "Already off" : "Already set",
+  absent: () => "Not on this TV",
+};
+
+function item(i) {
+  const tech = i.status === "pending" && i.kind === "setting"
+    ? `${i.target}: ${i.before ?? "unset"} → ${i.after}`
+    : i.target;
+  return el("li", { class: i.status },
+    el("div", { class: "top" },
+      el("span", { class: "label" }, i.label || i.target),
+      el("span", { class: `pill ${i.status === "pending" ? "pending" : i.status === "done" ? "ok" : "muted"}` }, STATUS[i.status](i))),
+    el("div", { class: "why" }, i.reason),
+    el("div", { class: "tech" }, el("code", {}, tech)));
 }
 
 function selectedGroups() {

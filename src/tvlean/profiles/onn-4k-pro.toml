@@ -6,117 +6,145 @@ id = "onn-4k-pro"
 name = "onn. Streaming Device 4K pro"
 match_models = ["onn. Streaming Device 4K pro"]
 tested_on = ["Android 14, jarvis, 2026-10-18"]
-default_groups = ["bloat", "privacy", "power", "speed"]
+default_groups = ["bloat", "privacy", "speed"]
 
-[groups]
-bloat = "Preinstalled apps that nothing else depends on"
-streaming = "Preinstalled streaming apps (opt-in: only if you don't use them)"
-privacy = "Ad targeting, personalization and location"
-power = "Let the device actually sleep"
-speed = "Snappier UI"
-launcher = "Use Projectivy Launcher as Home (opt-in; install Projectivy from the Play Store first)"
+# --- groups -------------------------------------------------------------------
 
-# --- packages ---------------------------------------------------------------
+[groups.bloat]
+title = "Unused preinstalled apps"
+description = "Turns off apps that ship with the box but that nothing else needs. They disappear from your app list, stop starting in the background and stop auto-updating, which frees up memory."
+caveat = "TalkBack is the screen reader. Leave this group off if anyone in your home relies on it."
+
+[groups.streaming]
+title = "Preinstalled YouTube and Netflix"
+description = "Turns off YouTube and Netflix, which come preinstalled and can't be uninstalled the normal way. They stop running in the background and their rows disappear from the home screen."
+caveat = "Only pick this if you don't use them. Undo brings them back still signed in."
+
+[groups.privacy]
+title = "Ad tracking and location"
+description = "Turns off Android's built-in ad-interest system (Privacy Sandbox), Google's feedback reporter, and location. Apps can no longer ask the system for your ad interests or location."
+caveat = "Apps still see your internet address, so region-based apps keep working. To also delete your advertising ID, go to Settings > Privacy > Ads on the TV."
+
+[groups.speed]
+title = "Faster animations"
+description = "Makes menu and app-switching animations play twice as fast. Nothing is turned off; the TV just feels snappier."
+caveat = ""
+
+[groups.launcher]
+title = "Projectivy as your home screen"
+description = "Lets Projectivy Launcher take over the Home button, replacing the Google TV home screen (and its ads and recommendations) with a lighter one. The Google TV launcher stays installed, just unused."
+caveat = "Install Projectivy from the Play Store first. Applying presses Home on the TV once to check it worked, which interrupts anything playing."
+
+# --- packages -----------------------------------------------------------------
 
 [[package]]
 package = "com.google.android.play.games"
-reason = "Play Games; unused on TV"
+label = "Play Games"
+reason = "Google's game hub and achievements service. Only matters if you play Android games on the TV."
 groups = ["bloat"]
 
 [[package]]
 package = "com.google.android.marvin.talkback"
-reason = "TalkBack screen reader; re-enable if you need it"
+label = "TalkBack"
+reason = "Screen reader that speaks what's on screen. Only needed by blind or low-vision users."
 groups = ["bloat"]
 
 [[package]]
 package = "com.android.printspooler"
-reason = "Printing service; TVs don't print"
+label = "Print Spooler"
+reason = "Android's printing service. A TV has nothing to print."
 groups = ["bloat"]
 
 [[package]]
 package = "com.google.android.feedback"
-reason = "Google feedback reporter"
+label = "Google Feedback"
+reason = "The 'send feedback' tool that uploads bug reports and system logs to Google."
 groups = ["bloat", "privacy"]
 
 [[package]]
 package = "com.android.tv.feedbackconsent"
-reason = "Feedback consent prompt"
+label = "Feedback consent"
+reason = "Asks whether to share feedback with Google. Does nothing once Google Feedback is off."
 groups = ["bloat", "privacy"]
 
 [[package]]
 package = "com.google.android.youtube.tv"
-reason = "Preinstalled YouTube"
+label = "YouTube"
+reason = "Google's YouTube app for TV."
 groups = ["streaming"]
 
 [[package]]
 package = "com.netflix.ninja"
-reason = "Preinstalled Netflix"
+label = "Netflix"
+reason = "The preinstalled Netflix app."
 groups = ["streaming"]
 
 [[package]]
 package = "com.netflix.tokenmanager"
-reason = "Netflix sign-in helper; only useful with Netflix"
+label = "Netflix sign-in helper"
+reason = "Keeps Netflix signed in across resets. Does nothing without the Netflix app."
 groups = ["streaming"]
 
 [[package]]
 package = "com.android.adservices.api"
-reason = "Privacy Sandbox ad services"
+label = "Privacy Sandbox ad services"
+reason = "Builds a list of your interests on the device so apps can show you targeted ads."
 groups = ["privacy"]
 
 [[package]]
 package = "com.android.ondevicepersonalization.services"
-reason = "Privacy Sandbox on-device personalization"
+label = "On-device personalization"
+reason = "Personalizes ads and content based on what you do on the device."
 groups = ["privacy"]
 
 [[package]]
 package = "com.android.federatedcompute.services"
-reason = "Privacy Sandbox federated learning"
+label = "Federated compute"
+reason = "Uses your device's data to help train Google's ad and personalization models."
 groups = ["privacy"]
 
-# --- settings ---------------------------------------------------------------
-
-[[setting]]
-namespace = "global"
-key = "stay_on_while_plugged_in"
-value = "0"
-reason = "Developer option 'Stay awake' keeps the box running forever"
-groups = ["power"]
+# --- settings -----------------------------------------------------------------
 
 [[setting]]
 namespace = "secure"
 key = "location_mode"
 value = "0"
-reason = "A TV box doesn't need location"
+label = "Location"
+reason = "Turns location off. A TV box doesn't move, and apps that need your region use your internet address instead."
 groups = ["privacy"]
 
 [[setting]]
 namespace = "global"
 key = "window_animation_scale"
 value = "0.5"
-reason = "Halve animation time"
+label = "Window animations"
+reason = "How long windows take to open and close: 1x becomes 0.5x."
 groups = ["speed"]
 
 [[setting]]
 namespace = "global"
 key = "transition_animation_scale"
 value = "0.5"
-reason = "Halve animation time"
+label = "Transition animations"
+reason = "How long switching between apps and screens takes: 1x becomes 0.5x."
 groups = ["speed"]
 
 [[setting]]
 namespace = "global"
 key = "animator_duration_scale"
 value = "0.5"
-reason = "Halve animation time"
+label = "In-app animations"
+reason = "How long animations inside apps take, such as menus sliding in: 1x becomes 0.5x."
 groups = ["speed"]
 
-# --- accessibility services -----------------------------------------------------
+# --- accessibility services ---------------------------------------------------
 
 # The safe way to replace the stock launcher on Google TV: leave launcherx
 # enabled and let Projectivy intercept the Home button.
 [[accessibility]]
 service = "com.spocky.projengmenu/.services.ProjectivyAccessibilityService"
-reason = "Lets Projectivy take over the Home button without disabling the stock launcher"
+label = "Projectivy Home-button override"
+reason = "Turns on Projectivy's accessibility service, the Android permission it uses to catch Home button presses. Accessibility services can see what's on screen, so only enable this for an app you trust."
 groups = ["launcher"]
 takes_over_home = true
 hint = "In Projectivy: Settings > General > turn on 'Override current launcher'."
