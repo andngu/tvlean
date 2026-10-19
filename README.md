@@ -27,16 +27,17 @@ no way back. tvlean takes the opposite approach:
 
    ```sh
    tvlean devices --connect 192.168.1.50
-   tvlean audit -v          # read-only: what would change
-   tvlean apply --dry-run   # show the plan
+   tvlean audit -v          # read-only: every option and its state on this TV
+   tvlean apply --dry-run   # show what the recommended picks would change
    tvlean apply             # do it (asks first)
    tvlean restore           # undo the last apply
    ```
 
 ## Web UI
 
-Prefer clicking to typing? `tvlean serve` opens a small local page that shows
-the device's status, what each group would change, and Apply / Undo buttons.
+Prefer clicking to typing? `tvlean serve` runs a small local page. It shows
+the TV's status and every option with its state on the TV. You pick what
+to change, review the exact list, and apply or undo.
 
 ```sh
 tvlean serve                      # http://localhost:8765/#token=...
@@ -47,21 +48,37 @@ Open the exact URL it prints: it carries a random per-session token, and
 every action requires it, so other websites can't drive your TV. It listens
 on localhost only unless you pass `--host`.
 
-## Groups
+## Pick what to change
 
-Profiles split changes into groups. Defaults are applied unless you pass
-`--without GROUP`; opt-in groups need `--with GROUP`.
+Each option is picked on its own. Options marked **Recommended** start
+picked. `apply` with no flags uses those, and you adjust from there:
 
-| Group | Default | What you'll notice |
-|---|---|---|
-| `bloat` | yes | Unused preinstalled apps (Play Games, TalkBack, Print Spooler, Google Feedback) disappear and stop running in the background |
-| `privacy` | yes | Android's ad-interest system (Privacy Sandbox), Google's feedback reporter and location are turned off |
-| `speed` | yes | Menu and app-switching animations run twice as fast |
-| `streaming` | opt-in | Preinstalled YouTube and Netflix are turned off |
-| `launcher` | opt-in | [Projectivy Launcher](https://play.google.com/store/apps/details?id=com.spocky.projengmenu) replaces the Google TV home screen (see below) |
+```sh
+tvlean apply --without talkback                # recommended, minus one
+tvlean apply --with netflix --with prime-video # also turn off two apps
+tvlean apply --with screensaver=colors         # a choice takes =VALUE
+tvlean apply --no-defaults --with location     # exactly one thing
+```
 
-`tvlean audit -v` and the web UI explain every item in plain English before
-anything changes.
+`tvlean audit` lists every option ID, its state on this TV, and the values
+of each choice.
+
+| Section | Options |
+|---|---|
+| Unused preinstalled apps | Play Games, TalkBack, Print Spooler (recommended) |
+| Ad tracking and location | Google Feedback, ad interest tracking (Privacy Sandbox), location (recommended) |
+| Streaming apps | Each known streaming app found on the TV: Netflix, YouTube, Prime Video, Disney+, Hulu, Apple TV, Stremio, and more. Never recommended. |
+| Screensaver and animations | Screensaver: Ambient Mode, simple colors, or off. Animation speed: normal, fast (recommended), or off. |
+| Home screen | Projectivy as your home screen (see below) |
+
+Some rules keep picks predictable:
+
+- tvlean recommends a choice only while the TV is still on its stock value.
+  If you already set animations to Off, `apply` leaves them off.
+- An unpicked option is left alone. tvlean never turns something back on
+  unless you run `tvlean restore`.
+- Streaming apps come from [`catalog/streaming.toml`](src/tvlean/catalog/streaming.toml).
+  tvlean shows only the ones installed on the TV.
 
 ## Supported devices
 
@@ -76,12 +93,13 @@ small TOML files and are the most useful thing you can contribute.
 
 The stock Google TV launcher is the heaviest thing on most boxes, but disabling
 it can leave you with no home screen (on the onn 4K Pro, a setup "recovery"
-screen takes over). tvlean never does that. Instead, `--with launcher` turns on
+screen takes over). tvlean never does that. Instead, `--with projectivy` turns on
 [Projectivy Launcher](https://play.google.com/store/apps/details?id=com.spocky.projengmenu)'s
-accessibility service so it can intercept the Home button:
+accessibility service so it can intercept the Home button. tvlean offers
+this only when Projectivy is installed:
 
 ```sh
-tvlean apply --with launcher
+tvlean apply --with projectivy
 ```
 
 Projectivy also has an in-app switch that adb can't reach, so after applying,

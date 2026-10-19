@@ -1,0 +1,83 @@
+# Streaming apps tvlean can offer to turn off on any Android TV device.
+# Device-independent: tvlean shows only the ones installed on the TV, so a
+# wrong package name is harmless. Never recommended: people use their apps.
+# Schema per app: label, disable, reason. Nothing else.
+
+[section]
+title = "Streaming apps"
+description = "Streaming apps found on this TV. Turning one off removes it from your apps and its row from the home screen, and stops it running in the background."
+caveat = "Only pick apps you don't use. Undo brings them back still signed in."
+
+[app.netflix]
+label = "Netflix"
+disable = ["com.netflix.ninja", "com.netflix.tokenmanager"]
+reason = "Also turns off Netflix's sign-in helper, which does nothing without the app."
+
+[app.youtube]
+label = "YouTube"
+disable = ["com.google.android.youtube.tv"]
+
+[app.youtube-music]
+label = "YouTube Music"
+disable = ["com.google.android.youtube.tvmusic"]
+
+[app.youtube-tv]
+label = "YouTube TV"
+disable = ["com.google.android.youtube.tvunplugged"]
+
+[app.prime-video]
+label = "Prime Video"
+disable = ["com.amazon.amazonvideo.livingroom"]
+
+[app.disney-plus]
+label = "Disney+"
+disable = ["com.disney.disneyplus"]
+
+[app.hulu]
+label = "Hulu"
+disable = ["com.hulu.livingroomplus"]
+
+[app.max]
+label = "Max"
+disable = ["com.wbd.stream"]
+
+[app.paramount-plus]
+label = "Paramount+"
+disable = ["com.cbs.ott"]
+
+[app.peacock]
+label = "Peacock"
+disable = ["com.peacocktv.peacockandroid"]
+
+[app.apple-tv]
+label = "Apple TV"
+disable = ["com.apple.atve.androidtv.appletv"]
+
+[app.spotify]
+label = "Spotify"
+disable = ["com.spotify.tv.android"]
+
+[app.plex]
+label = "Plex"
+disable = ["com.plexapp.android"]
+
+[app.pluto-tv]
+label = "Pluto TV"
+disable = ["tv.pluto.android"]
+
+[app.tubi]
+label = "Tubi"
+disable = ["com.tubitv"]
+
+[app.crunchyroll]
+label = "Crunchyroll"
+disable = ["com.crunchyroll.crunchyroid"]
+
+[app.stremio]
+label = "Stremio"
+disable = ["com.stremio.one"]
+
+[app.google-tv-app]
+label = "Google TV (movies and shows app)"
+disable = ["com.google.android.videos"]
+reason = "The store and library for movies you've bought or rented. Not the home screen."

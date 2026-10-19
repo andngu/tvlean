@@ -38,13 +38,47 @@ def _profile(args, device: Device) -> Profile:
     return prof
 
 
-def _groups(args, prof: Profile) -> list[str]:
-    groups = list(prof.default_groups)
-    for g in args.with_ or []:
-        if g not in prof.groups:
-            sys.exit(f"unknown group {g!r}; this profile has: {', '.join(prof.groups)}")
-        groups.append(g)
-    return [g for g in groups if g not in (args.without or [])]
+def _selection(args, survey: engine.Survey) -> dict[str, str]:
+    """Defaults, then each --with ID[=VALUE], minus each --without ID."""
+    selection = {} if args.no_defaults else survey.defaults()
+    for pick in args.with_ or []:
+        oid, _, vid = pick.partition("=")
+        opt = survey.option(oid)
+        if opt is None:
+            sys.exit(f"unknown option {oid!r}; `tvlean audit` lists them")
+        if not vid:
+            if opt.option.is_choice:
+                ids = ", ".join(v.value.id for v in opt.values)
+                sys.exit(f"{oid} is a choice; pick one with --with {oid}=VALUE ({ids})")
+            vid = opt.option.values[0].id
+        selection[oid] = vid
+    for oid in args.without or []:
+        if survey.option(oid) is None:
+            sys.exit(f"unknown option {oid!r}; `tvlean audit` lists them")
+        selection.pop(oid, None)
+    return selection
+
+
+STATUS_TEXT = {
+    engine.Status.CHANGE: {"off": "will turn off", "on": "will turn on", "set": "will change"},
+    engine.Status.DONE: {"off": "already off", "on": "already on", "set": "already set"},
+    engine.Status.ABSENT: {"off": "not on this TV", "on": "not on this TV", "set": "not on this TV"},
+}
+
+
+def _status_text(o: engine.OptionStatus) -> str:
+    if o.option.is_choice:
+        now = o.value(o.current).value.label if o.current else "custom"
+        picks = ", ".join(
+            v.value.id + ("*" if v.value.id == o.option.recommended else "")
+            for v in o.values
+            if v.status is not engine.Status.UNAVAILABLE
+        )
+        return f"now {now}; values: {picks}"
+    vs = o.values[0]
+    if vs.status is engine.Status.UNAVAILABLE:
+        return f"unavailable: {vs.why}"
+    return STATUS_TEXT[vs.status][vs.value.action]
 
 
 def _print_plan(changes: list[engine.Change]) -> None:
@@ -53,7 +87,9 @@ def _print_plan(changes: list[engine.Change]) -> None:
         return
     for c in changes:
         verb = {"package": "turn off", "accessibility": "turn on"}.get(c.kind, f"set {c.before} -> {c.after}")
-        print(f"  - {c.label or c.target} ({verb}, {c.target})\n    {c.reason}")
+        print(f"  - {c.label or c.target} ({verb}, {c.target})")
+        if c.reason:
+            print(f"    {c.reason}")
 
 
 def cmd_devices(args) -> None:
@@ -68,7 +104,7 @@ def cmd_devices(args) -> None:
 
 def cmd_profiles(args) -> None:
     for p in builtin_profiles():
-        print(f"{p.id}\t{p.name}\tgroups: {', '.join(p.groups)}")
+        print(f"{p.id}\t{p.name}\tsections: {', '.join(s.id for s in p.sections)}")
 
 
 def cmd_audit(args) -> None:
@@ -79,29 +115,38 @@ def cmd_audit(args) -> None:
     print(f"Profile:  {prof.id}")
     print(f"Free RAM: {mem // 1024 if mem else '?'} MB")
     print(f"Home:     {dev.home_activity()} ({'ok' if engine.home_is_healthy(dev) else 'BROKEN'})")
-    installed = dev.installed_packages()
-    for p in prof.protected:
-        if p.package in installed and dev.package_state(p.package) in engine.DISABLED_STATES:
-            print(f"WARNING:  protected package {p.package} is disabled. {p.reason}")
-    print()
-    for group, info in prof.groups.items():
-        changes = engine.plan(dev, prof, [group])
-        default = "" if group in prof.default_groups else " (opt-in)"
-        print(f"[{group}]{default} {info.title}: {len(changes)} to change")
+    survey = engine.survey(dev, prof)
+    for w in survey.warnings:
+        print(f"WARNING:  {w}")
+    defaults = survey.defaults()
+    for sec in survey.sections:
+        found = f" (found on this TV: {len(sec.options)})" if sec.section.detected else ""
+        print(f"\n{sec.section.title}{found}")
         if args.verbose:
-            print(f"  {info.description}")
-            if info.caveat:
-                print(f"  Good to know: {info.caveat}")
-            _print_plan(changes)
-            print()
+            print(f"  {sec.section.description}")
+            if sec.section.caveat:
+                print(f"  Good to know: {sec.section.caveat}")
+        if sec.section.detected and not sec.options:
+            print("  No known apps from this list are installed.")
+        for o in sec.options:
+            mark = "[x]" if o.option.id in defaults else "   "
+            pick = f" -> {defaults[o.option.id]}" if o.option.is_choice and o.option.id in defaults else ""
+            print(f"  {mark} {o.option.id:<16} {o.option.label:<40} {_status_text(o)}{pick}")
+            if args.verbose and o.option.reason:
+                print(f"      {o.option.reason}")
+    n = len(survey.plan(defaults))
+    print(f"\n[x] = picked by default ({n} change{'s' if n != 1 else ''}). Adjust with: tvlean apply --with ID[=VALUE] --without ID")
 
 
 def cmd_apply(args) -> None:
     dev = _device(args)
     prof = _profile(args, dev)
-    groups = _groups(args, prof)
-    changes = engine.plan(dev, prof, groups)
-    print(f"Profile {prof.id}, groups: {', '.join(groups)}")
+    survey = engine.survey(dev, prof)
+    try:
+        changes = survey.plan(_selection(args, survey))
+    except engine.SelectionError as e:
+        sys.exit(f"error: {e}")
+    print(f"Profile {prof.id}")
     _print_plan(changes)
     if not changes or args.dry_run:
         return
@@ -142,13 +187,14 @@ def main(argv: list[str] | None = None) -> None:
 
     p = sub.add_parser("audit", help="show device state and pending changes (read-only)")
     p.add_argument("-p", "--profile", help="profile id or path to a .toml")
-    p.add_argument("-v", "--verbose", action="store_true", help="list each pending change")
+    p.add_argument("-v", "--verbose", action="store_true", help="explain each section and option")
     p.set_defaults(fn=cmd_audit)
 
     p = sub.add_parser("apply", help="apply a profile (journaled, reversible)")
     p.add_argument("-p", "--profile", help="profile id or path to a .toml")
-    p.add_argument("--with", dest="with_", action="append", metavar="GROUP", help="add an opt-in group")
-    p.add_argument("--without", action="append", metavar="GROUP", help="skip a default group")
+    p.add_argument("--with", dest="with_", action="append", metavar="ID[=VALUE]", help="also change this option")
+    p.add_argument("--without", action="append", metavar="ID", help="leave this option alone")
+    p.add_argument("--no-defaults", action="store_true", help="start from nothing instead of the recommended picks")
     p.add_argument("-n", "--dry-run", action="store_true")
     p.add_argument("-y", "--yes", action="store_true", help="don't ask for confirmation")
     p.set_defaults(fn=cmd_apply)
