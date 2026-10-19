@@ -19,6 +19,11 @@ from pathlib import Path
 NAMESPACES = ("global", "secure", "system")
 TOGGLE = "on"  # the value id of a toggle's only value
 ID_RE = re.compile(r"[a-z0-9][a-z0-9-]*\Z")  # no "=", so the CLI's ID=VALUE stays unambiguous
+# These go into `adb shell` command lines, so only plain characters are allowed.
+PACKAGE_RE = re.compile(r"[A-Za-z0-9_.]+\Z")
+SERVICE_RE = re.compile(r"[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+\Z")
+KEY_RE = re.compile(r"[A-Za-z0-9_.]+\Z")
+SETTING_VALUE_RE = re.compile(r"[A-Za-z0-9_./:-]*\Z")
 A11Y_LIST = "secure/enabled_accessibility_services"
 A11Y_MASTER = "secure/accessibility_enabled"
 
@@ -188,26 +193,47 @@ def _strings(value, where: str, key: str) -> list[str]:
     return value
 
 
+def _packages(value, where: str, key: str) -> list[str]:
+    names = _strings(value, where, key)
+    for name in names:
+        if not PACKAGE_RE.match(name):
+            raise ProfileError(f"{where}: {key} has an invalid package name {name!r}")
+    return names
+
+
+def _bool(table: dict, key: str, where: str) -> bool:
+    value = table.get(key, False)
+    if not isinstance(value, bool):
+        raise ProfileError(f"{where}: {key} must be true or false")
+    return value
+
+
+def _table(value, where: str) -> dict:
+    if not isinstance(value, dict):
+        raise ProfileError(f"{where}: must be a table")
+    return value
+
+
 def _effects(table: dict, where: str) -> tuple[tuple[Effect, ...], tuple[Requirement, ...]]:
-    effects: list[Effect] = [Disable(p) for p in _strings(table.get("disable", []), where, "disable")]
+    effects: list[Effect] = [Disable(p) for p in _packages(table.get("disable", []), where, "disable")]
     sets = table.get("set", {})
     if not isinstance(sets, dict):
         raise ProfileError(f"{where}: set must be a table of \"namespace/key\" = \"value\"")
     for target, value in sets.items():
         ns, _, key = target.partition("/")
-        if ns not in NAMESPACES or not key:
+        if ns not in NAMESPACES or not KEY_RE.match(key):
             raise ProfileError(f"{where}: setting must be one of {'/, '.join(NAMESPACES)}/ plus a key, got {target!r}")
         if target in (A11Y_LIST, A11Y_MASTER):
             raise ProfileError(f"{where}: use enable_service instead of setting {target} directly")
-        if not isinstance(value, str):
-            raise ProfileError(f"{where}: {target} must be a string, exactly as adb writes it")
+        if not isinstance(value, str) or not SETTING_VALUE_RE.match(value):
+            raise ProfileError(f"{where}: {target} must be a plain string, exactly as adb writes it")
         effects.append(Put(ns, key, value))
     pkg_missing = table.get("if_missing")
-    requires = [Requirement(p, pkg_missing or f"{p} isn't on this TV.") for p in _strings(table.get("requires", []), where, "requires")]
-    if service := table.get("enable_service"):
-        if "/" not in service or ":" in service:
+    requires = [Requirement(p, pkg_missing or f"{p} isn't on this TV.") for p in _packages(table.get("requires", []), where, "requires")]
+    if (service := table.get("enable_service")) is not None:
+        if not isinstance(service, str) or not SERVICE_RE.match(service):
             raise ProfileError(f"{where}: enable_service must be 'package/.Class', got {service!r}")
-        e = EnableService(service, bool(table.get("takes_over_home", False)), table.get("home_hint", ""))
+        e = EnableService(service, _bool(table, "takes_over_home", where), table.get("home_hint", ""))
         if e.takes_over_home and not e.home_hint:
             raise ProfileError(f"{where}: takes_over_home needs a home_hint for when the check fails")
         effects.append(e)
@@ -227,17 +253,16 @@ def _option(oid: str, table: dict, where: str) -> Option:
         _check_keys(table, OPTION_KEYS | EFFECT_KEYS, where)
         effects, requires = _effects(table, where)
         values = (Value(TOGGLE, label, "", effects, requires),)
-        rec = table.get("recommended", False)
-        if not isinstance(rec, bool):
-            raise ProfileError(f"{where}: a toggle's recommended is true or false")
-        recommended = TOGGLE if rec else None
+        recommended = TOGGLE if _bool(table, "recommended", where) else None
     else:
         if effect_keys := sorted(set(table) & EFFECT_KEYS):
             raise ProfileError(f"{where}: {effect_keys[0]} goes on each [option.{oid}.value.*], not on a choice")
         _check_keys(table, OPTION_KEYS, where)
+        values_table = _table(values_table, f"{where}.value")
         if len(values_table) < 2:
             raise ProfileError(f"{where}: a choice needs two or more values; put a toggle's effects on the option itself")
-        values = tuple(_value(vid, vt, f"{where}.value.{vid}") for vid, vt in values_table.items())
+        values = tuple(_value(vid, _table(vt, f"{where}.value.{vid}"), f"{where}.value.{vid}") for vid, vt in values_table.items())
+        _check_choice(values, where)
         if sum(v.stock for v in values) > 1:
             raise ProfileError(f"{where}: only one value can be stock")
         recommended = table.get("recommended")
@@ -252,7 +277,21 @@ def _value(vid: str, table: dict, where: str) -> Value:
     _check_id(vid, where)
     _check_keys(table, VALUE_KEYS, where)
     effects, requires = _effects(table, where)
-    return Value(vid, _field(table, "label", where), table.get("detail", ""), effects, requires, bool(table.get("stock", False)))
+    return Value(vid, _field(table, "label", where), table.get("detail", ""), effects, requires, _bool(table, "stock", where))
+
+
+def _check_choice(values: tuple[Value, ...], where: str) -> None:
+    """Picking any value must undo the others, so values only set settings, and
+    every setting is shared by at least two values."""
+    for v in values:
+        if any(not isinstance(e, Put) for e in v.effects):
+            raise ProfileError(f"{where}.value.{v.id}: a choice's values can only use set")
+    seen: dict[str, int] = {}
+    for v in values:
+        for e in v.effects:
+            seen[e.target] = seen.get(e.target, 0) + 1
+    if lonely := sorted(t for t, n in seen.items() if n < 2):
+        raise ProfileError(f"{where}: {lonely[0]} is set by only one value, so picking another value can't undo it")
 
 
 def _catalog_section(sid: str, name: str, where: str) -> Section:
@@ -266,9 +305,9 @@ def _catalog_section(sid: str, name: str, where: str) -> Section:
     for aid, t in _field(data, "app", source).items():
         at = f"{source}: [app.{aid}]"
         _check_id(aid, at)
-        _check_keys(t, APP_KEYS, at)
+        _check_keys(_table(t, at), APP_KEYS, at)
         label = _field(t, "label", at)
-        disable = tuple(Disable(p) for p in _strings(_field(t, "disable", at), at, "disable"))
+        disable = tuple(Disable(p) for p in _packages(_field(t, "disable", at), at, "disable"))
         apps.append(Option(aid, sid, label, t.get("reason", ""), "", (Value(TOGGLE, label, "", disable),), None))
     return Section(sid, _field(head, "title", source), _field(head, "description", source), head.get("caveat", ""), tuple(apps), True)
 

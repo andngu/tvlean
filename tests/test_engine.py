@@ -86,6 +86,12 @@ class SurveyTests(unittest.TestCase):
         self.assertEqual(s.option("screensaver").current, "ambient")
         self.assertNotIn("screensaver", s.defaults())
 
+    def test_unset_keys_borrow_the_stock_value_when_judging_other_values(self):
+        colors = {"secure/screensaver_components": "com.android.dreams.basic/.Colors"}
+        s = engine.survey(FakeDevice({"com.android.dreams.basic": "default"}, colors), ONN)
+        self.assertEqual(s.option("screensaver").current, "colors")
+        self.assertEqual(s.plan({"screensaver": "colors"}), [])
+
     def test_simple_screensaver_needs_the_basic_dream(self):
         vs = engine.survey(FakeDevice({}, AMBIENT), ONN).option("screensaver").value("colors")
         self.assertEqual(vs.status, Status.UNAVAILABLE)
@@ -99,6 +105,14 @@ class SurveyTests(unittest.TestCase):
         vs = engine.survey(FakeDevice({"com.netflix.ninja": "default"}), prof).option("netflix").values[0]
         self.assertEqual(vs.status, Status.UNAVAILABLE)
         self.assertIn("the remote needs it", vs.why)
+
+    def test_protected_catalog_app_that_is_not_installed_is_a_no_op(self):
+        prof = parse({
+            "profile": {"id": "t", "name": "T", "match_models": ["X"]},
+            "section": {"streaming": {"catalog": "streaming"}},
+            "protected": [{"package": "com.netflix.ninja", "reason": "the remote needs it"}],
+        })
+        self.assertEqual(engine.survey(FakeDevice({}), prof).plan({"netflix": "on"}), [])
 
     def test_warns_when_a_protected_package_is_disabled(self):
         s = engine.survey(FakeDevice({"com.google.android.apps.tv.launcherx": "disabled-user"}), ONN)
@@ -217,6 +231,15 @@ class HomeOverrideTests(StateDirTest):
         failed = engine.verify_home_overrides(dev, ONN, changes, settle=0)
         self.assertEqual([pkg for pkg, _ in failed], [PROJECTIVY])
         self.assertIn("Override current launcher", failed[0][1])
+
+    def test_checks_home_when_only_the_master_switch_was_off(self):
+        for toggle_on, failed in ((True, []), (False, [PROJECTIVY])):
+            dev = FakeDevice({PROJECTIVY: "default"}, {"secure/enabled_accessibility_services": SERVICE})
+            dev.home_override_toggle = toggle_on
+            changes = engine.survey(dev, ONN).plan({"projectivy": "on"})
+            self.assertEqual([c.target for c in changes], ["secure/accessibility_enabled"])
+            engine.apply(dev, ONN, changes)
+            self.assertEqual([p for p, _ in engine.verify_home_overrides(dev, ONN, changes, settle=0)], failed)
 
     def test_never_presses_home_without_an_override_change(self):
         dev = FakeDevice({})

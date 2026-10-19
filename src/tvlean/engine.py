@@ -193,14 +193,16 @@ def _value_status(opt: Option, value: Value, sec: Section, profile: Profile, r: 
     for req in value.requires:
         if req.package not in r.installed:
             return ValueStatus(value, Status.UNAVAILABLE, req.if_missing)
+    if all(isinstance(e, Disable) for e in value.effects) and not any(e.package in r.installed for e in value.effects):
+        return ValueStatus(value, Status.ABSENT)
     if sec.detected:
         for e in value.effects:
             if isinstance(e, Disable) and (p := profile.is_protected(e.package)):
                 return ValueStatus(value, Status.UNAVAILABLE, f"tvlean never turns this off on this TV: {p.reason}")
-    if all(isinstance(e, Disable) for e in value.effects) and not any(e.package in r.installed for e in value.effects):
-        return ValueStatus(value, Status.ABSENT)
     label = f"{opt.label}: {value.label}" if opt.is_choice else opt.label
     reason = (value.detail or opt.reason) if opt.is_choice else opt.reason
+    # An unset setting behaves like the value the TV ships with.
+    stock = {e.target: e.value for e in opt.stock.effects if isinstance(e, Put)} if opt.stock else {}
     changes: list[Change] = []
     for e in value.effects:
         if isinstance(e, Disable):
@@ -209,7 +211,8 @@ def _value_status(opt: Option, value: Value, sec: Section, profile: Profile, r: 
                 changes.append(Change("package", e.package, state, "disabled-user", reason, label))
         elif isinstance(e, Put):
             current = r.settings.get(e.target)
-            if not (_same(current, e.value) or (current is None and value.stock)):
+            effective = current if current is not None else stock.get(e.target)
+            if not _same(effective, e.value):
                 changes.append(Change("setting", e.target, current, e.value, reason, label))
         else:
             if e.service not in r.services:
@@ -294,6 +297,9 @@ def verify_home_overrides(
     can't reach, so the only honest check is to press Home and look.
     """
     enabled = {c.target for c in changes if c.kind == "accessibility"}
+    if any(c.target == A11Y_MASTER for c in changes):
+        # The master switch alone can bring an already-listed override to life.
+        enabled |= set(enabled_services(device))
     overrides = [e for e in profile.home_overrides() if e.service in enabled]
     if not overrides:
         return []

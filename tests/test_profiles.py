@@ -79,6 +79,35 @@ class ProfileTests(unittest.TestCase):
         with self.assertRaises(ProfileError):
             profile(protected=[{"package": "a.games", "reason": "needed"}])
 
+    def choice(self, values):
+        return profile(option={"c": {"section": "apps", "label": "C", "reason": "r", "value": values}})
+
+    def test_choice_values_only_set_settings(self):
+        with self.assertRaises(ProfileError):
+            self.choice({"x": {"label": "X", "disable": ["p.one"]}, "y": {"label": "Y", "set": {"global/k": "2"}}})
+
+    def test_choice_settings_must_be_shared_so_switching_undoes_them(self):
+        with self.assertRaises(ProfileError):
+            self.choice({"x": {"label": "X", "set": {"global/k": "1", "global/extra": "1"}},
+                         "y": {"label": "Y", "set": {"global/k": "2"}}})
+
+    def test_flags_must_be_real_booleans_and_tables_real_tables(self):
+        bad = [
+            {"c": {"section": "apps", "label": "C", "reason": "r", "value": {
+                "x": {"label": "X", "stock": "false", "set": {"global/k": "1"}},
+                "y": {"label": "Y", "set": {"global/k": "2"}}}}},
+            {"c": {"section": "apps", "label": "C", "reason": "r", "value": "abc"}},
+            {"c": {"section": "apps", "label": "C", "reason": "r", "enable_service": 1}},
+        ]
+        for option in bad:
+            with self.assertRaises(ProfileError, msg=option):
+                profile(option=option)
+
+    def test_shell_metacharacters_are_rejected(self):
+        for effect in ({"disable": ["foo; reboot"]}, {"set": {"global/k": "1; reboot"}}, {"set": {"global/k k": "1"}}):
+            with self.assertRaises(ProfileError, msg=effect):
+                profile(option={"a": {"section": "apps", "label": "A", "reason": "r", **effect}})
+
     def test_option_needs_a_defined_section(self):
         with self.assertRaises(ProfileError):
             profile(option={"a": {"section": "nope", "label": "A", "reason": "r", "disable": ["p"]}})

@@ -286,6 +286,12 @@ function choiceRow(opt) {
       v.id === opt.current ? el("span", { class: "tag" }, "Now") : null,
       v.id === opt.recommended ? el("span", { class: "tag rec" }, "Recommended") : null);
   });
+  if (!opt.current) {
+    // A custom setting: offer a way back to "leave it alone" after an accidental click.
+    const keep = el("input", { type: "radio", name, value: "", checked: !selection[opt.id] });
+    keep.addEventListener("change", () => { delete selection[opt.id]; show(); updateBar(); });
+    radios.unshift(el("label", {}, keep, "Keep as is"));
+  }
   const unavailable = opt.values.filter((v) => v.status === "unavailable");
   show();
   return el("div", { class: "opt" },
