@@ -115,6 +115,11 @@ class PlanTests(unittest.TestCase):
         dev = FakeDevice({"a.pkg": "disabled-user"}, {"global/anim": "0.5"})
         self.assertEqual(engine.survey(dev, tiny()).plan({"a": "on", "b": "on", "anim": "on"}), [])
 
+    def test_picking_a_catalog_app_that_is_not_installed_changes_nothing(self):
+        s = engine.survey(FakeDevice({}), ONN)
+        self.assertNotIn("prime-video", [o.option.id for o in s.options()])
+        self.assertEqual(s.plan({"prime-video": "on"}), [])
+
     def test_rejects_unknown_options_values_and_unavailable_picks(self):
         s = engine.survey(FakeDevice({}), ONN)
         for bad in ({"nope": "on"}, {"animations": "slow"}, {"projectivy": "on"}):

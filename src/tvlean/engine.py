@@ -90,12 +90,13 @@ class Survey:
     profile: Profile
     sections: tuple[SectionStatus, ...]
     warnings: tuple[str, ...]
+    hidden: tuple[OptionStatus, ...] = ()  # catalog apps not on this TV: not shown, but picking one is a no-op
 
     def options(self) -> list[OptionStatus]:
         return [o for s in self.sections for o in s.options]
 
     def option(self, option_id: str) -> OptionStatus | None:
-        return next((o for o in self.options() if o.option.id == option_id), None)
+        return next((o for o in [*self.options(), *self.hidden] if o.option.id == option_id), None)
 
     def defaults(self) -> dict[str, str]:
         return {o.option.id: o.default for o in self.options() if o.default}
@@ -150,9 +151,11 @@ def _read(device: Device, profile: Profile) -> _Reading:
 
 def _assess(profile: Profile, r: _Reading) -> Survey:
     sections = []
+    hidden: list[OptionStatus] = []
     for sec in profile.sections:
         options = [_option_status(opt, sec, profile, r) for opt in sec.options]
         if sec.detected:
+            hidden += [o for o in options if not _installed_any(o.option, r)]
             options = [o for o in options if _installed_any(o.option, r)]
         sections.append(SectionStatus(sec, tuple(options)))
     warnings = tuple(
@@ -160,7 +163,7 @@ def _assess(profile: Profile, r: _Reading) -> Survey:
         for p in profile.protected
         if r.states.get(p.package) in DISABLED_STATES
     )
-    return Survey(profile, tuple(sections), warnings)
+    return Survey(profile, tuple(sections), warnings, tuple(hidden))
 
 
 def _installed_any(opt: Option, r: _Reading) -> bool:

@@ -58,6 +58,11 @@ class CliTests(unittest.TestCase):
         self.assertEqual(self.dev.packages["com.netflix.ninja"], "default")
         self.assertEqual(self.dev.settings["global/window_animation_scale"], "1.0")
 
+    def test_readme_style_picks_work_on_a_tv_without_those_apps(self):
+        out = self.run_cli("apply", "--dry-run", "--with", "netflix", "--with", "prime-video")
+        self.assertIn("Netflix (turn off", out)
+        self.assertNotIn("Prime Video", out)
+
     def test_bad_picks_exit_with_a_message(self):
         for argv, msg in [
             (("--with", "animations"), "animations is a choice"),
